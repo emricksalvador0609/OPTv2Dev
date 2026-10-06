@@ -2,6 +2,11 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Mkacontrol;
+use App\Http\Controllers\PasswordController;
+
+Route::get('/change-password', [PasswordController::class, 'edit'])->name('password.edit');
+Route::post('/change-password', [PasswordController::class, 'update'])->middleware('throttle:5,1')->name('password.update');
+Route::post('/change-password/exit', [PasswordController::class, 'exit'])->name('password.exit');
 use App\Http\Controllers\PrintController;
 
 /*

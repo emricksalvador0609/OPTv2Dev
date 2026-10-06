@@ -1384,7 +1384,10 @@ return $s->isbn;
                     $request->session()->put('rank', $rank);
                     $request->session()->put('aplevel', $aplevel);
                     $request->session()->put('division', $division);
-                    return redirect()->route('dashboard_admin');
+                    $request->session()->forget('password_policy_check');
+                    $request->session()->regenerate();
+                    return redirect()->route(app(\App\Support\PasswordPolicy::class)->errors((string) $user->PASSWORD)
+                        ? 'password.edit' : 'dashboard_admin');
         
     
                 } else {
