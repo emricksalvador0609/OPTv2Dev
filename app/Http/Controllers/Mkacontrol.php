@@ -3032,7 +3032,7 @@ foreach ($isbnPrev3YearSalesHistory as $salesData) {
             $pulloutData = get_pullout_isbn($isbnlist);
             $sohData = get_soh_isbn($isbnlist);
             $onpoData = get_onpo_isbn($isbnlist);
-            $misopenpoData =  get_misopenpo();
+            // $misopenpoData =  get_misopenpo();
             $allocatedData = getAllocatedMainProjectionDeductSOH ($basedocnum,$isbnlist);
 
             $allocatedMap = [];
@@ -3056,12 +3056,12 @@ foreach ($isbnPrev3YearSalesHistory as $salesData) {
                 $sohMap[$row->EAN11] = round($row->SOHQTY) ?? 0;
             }
             $onpoMap = [];
-            // foreach ($onpoData as $d4) {
-            //     $onpoMap[$d4->EAN11] = round($d4->ONPOQTY) ?? 0;
-            // }
-            foreach ($misopenpoData as $isbn => $qty) {
-                $onpoMap[$isbn] = round($qty) ?? 0;
+            foreach ($onpoData as $d4) {
+                $onpoMap[$d4->EAN11] = round($d4->ONPOQTY) ?? 0;
             }
+            // foreach ($misopenpoData as $isbn => $qty) {
+            //     $onpoMap[$isbn] = round($qty) ?? 0;
+            // }
 //------------------------
 
 //ISBN sales per 3 years 
