@@ -821,6 +821,38 @@ return $s->isbn;
 
         $pernr[] = $pernrurl;
 
+        // Guard: dashboard fires this with basedocnum=null when the AE has no
+        // submitted projections yet (period dropdown empty). DOCNUM is INT, so
+        // the string 'null' made SQL Server throw SQLSTATE[22018] / 500.
+        if ($basedocnum === null || trim($basedocnum) === '' || trim($basedocnum) === 'null') {
+            return response()->json([
+                'maindashboardcount' => [
+                    "totalprojection" => 0,
+                    "totalfinalprojection" => 0,
+                    "totalprojection_amount" => "0.00",
+                    "totalreturned" => 0,
+                    "totalreturned_amount" => "0.00",
+                    "totalprojectionapproved" => 0,
+                    "totalprojectionapproved_amount" => "0.00",
+                    "totalprojectionpending" => 0,
+                    "totalprojectionpending_amount" => "0.00",
+                    "totalallocation" => 0,
+                    "totalallocation_amount" => 0,
+                    "projperiodstatus" => '-',
+                    "notyetallocated" => 0,
+                    "totalallocated" => 0,
+                    "unserved" => 0,
+                    "unservedPercent" => 0,
+                    "notYetAllocatedPercent" => 0,
+                    "allocatedPercent" => 0,
+                    "projtnpercentcomplete" => '<span class="fw-bold fs--1 text-700 rounded-3">-</span>',
+                ],
+                'allocatedchart' => ["bsasummary_count" => 0, "nonbsasummary_count" => 0],
+                'typesummarygraph' => ["bsasummary_count" => 0, "nonbsasummary_count" => 0],
+                'top10isbn' => [[0, "-"]],
+            ]);
+        }
+
         if($pernrurl == '1') {
 
             $pernr = filter_user_list()->pluck('PERNR')->toArray();;
@@ -3032,7 +3064,11 @@ foreach ($isbnPrev3YearSalesHistory as $salesData) {
             $pulloutData = get_pullout_isbn($isbnlist);
             $sohData = get_soh_isbn($isbnlist);
             $onpoData = get_onpo_isbn($isbnlist);
-            $misopenpoData =  get_misopenpo();
+            // get_misopenpo() was never defined — commit ef67415 shipped the call, production
+            // fatals with "Call to undefined function". Reverted to get_onpo_isbn() (pre-ef67415
+            // behavior). Intended source: MIS DB (172.16.0.199), tables empty + MATNR-keyed —
+            // blocked until team defines which table refreshes + MATNR->EAN11 mapping.
+            // $misopenpoData =  get_misopenpo();
             $allocatedData = getAllocatedMainProjectionDeductSOH ($basedocnum,$isbnlist);
 
             $allocatedMap = [];
@@ -3056,12 +3092,12 @@ foreach ($isbnPrev3YearSalesHistory as $salesData) {
                 $sohMap[$row->EAN11] = round($row->SOHQTY) ?? 0;
             }
             $onpoMap = [];
-            // foreach ($onpoData as $d4) {
-            //     $onpoMap[$d4->EAN11] = round($d4->ONPOQTY) ?? 0;
-            // }
-            foreach ($misopenpoData as $isbn => $qty) {
-                $onpoMap[$isbn] = round($qty) ?? 0;
+            foreach ($onpoData as $d4) {
+                $onpoMap[$d4->EAN11] = round($d4->ONPOQTY) ?? 0;
             }
+            // foreach ($misopenpoData as $isbn => $qty) {
+            //     $onpoMap[$isbn] = round($qty) ?? 0;
+            // }
 //------------------------
 
 //ISBN sales per 3 years 
@@ -8379,8 +8415,8 @@ $queryprojectiond =  OPTv2Projectiond::from('OPTV2PROJECTIOND as t1')
                             ->selectRaw("PERNR,
                                 MAX(EAN11) as EAN11,
                                 MAX(MATNR) as MATNR,
-                                SUM(CASE WHEN ALLOCTYPE = 'bsa' THEN QTY ELSE 0 END)  as BSAQTY,
-                                SUM(CASE WHEN ALLOCTYPE = 'nonbsa' THEN QTY ELSE 0 END) as NONBSAQTY
+                                SUM(CASE WHEN ALLOCTYPE = 'bsa' THEN CAST(QTY AS INT) ELSE 0 END)  as BSAQTY,
+                                SUM(CASE WHEN ALLOCTYPE = 'nonbsa' THEN CAST(QTY AS INT) ELSE 0 END) as NONBSAQTY
                             ")
                             ->orderBy('PERNR','DESC')
                             ->groupBy('PERNR')
@@ -8945,7 +8981,7 @@ $queryprojectiond =  OPTv2Projectiond::from('OPTV2PROJECTIOND as t1')
                                 // ->groupBy('prd.CRMMOTHERLOOKUP.NAME')
                                 ->where(function( $querya) use ($customer) {
                                     $querya->where('CUSTNO','LIKE','%'.$customer.'%')
-                                            ->orWhereRaw('CONTAINS(TAGS, ?)', ['"'.$customer.'"'])
+                                            ->orWhere('TAGS','LIKE','%'.$customer.'%')
                                             ;
                                             // ->orWhere('NAME', 'LIKE', '%"'.$customer.'"%');
                                          })

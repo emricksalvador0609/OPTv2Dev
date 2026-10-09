@@ -1137,7 +1137,7 @@ $(document).ready(function(){
 
         var projectionperiodtext = $('.selected_projection_id_text').val()
 
-        ExportExcel('projsummary-finalreq-list-table', 'Projection Period - '+ projectionperiodtext + ' - Final Req For Approval ')
+        ExportExcel('insertedisbn-finalreq-list-table', 'Projection Period - '+ projectionperiodtext + ' - Final Req For Approval ')
 
     });
 

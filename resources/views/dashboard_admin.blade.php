@@ -1014,7 +1014,7 @@ $(document).ready(function () {
     var basedocnum = $('.dashboard_projection_period').val();
 
   projApprovalStatus(basedocnum,pernr)
-  dashboard_graphs_data(pernr,basedocnum)
+  if (basedocnum) dashboard_graphs_data(pernr,basedocnum)
 
 
   $(document).on('click','.btn-exportexcel-dashboard-allocsummary',function (e) {
@@ -1031,7 +1031,7 @@ $(document).ready(function () {
     var basedocnum = $('.dashboard_projection_period').val();
 
     
-    dashboard_graphs_data(pernr,basedocnum);
+    if (basedocnum) dashboard_graphs_data(pernr,basedocnum);
     projApprovalStatus(basedocnum,pernr)
 
   });
