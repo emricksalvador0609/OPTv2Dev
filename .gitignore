@@ -1,3 +1,18 @@
-
 /vendor/
 .env
+
+# --- local-only dev artifacts (not part of the repo) ---
+/AGENTS.md
+/DEBUG_SKILL.md
+/PROJECTION_FLOW.md
+/SKILLS.md
+/.opencode/
+/.phpunit.result.cache
+/body.html
+
+# local-only DB bootstrap migrations: the testing database already exists and
+# these were inferred from code usage, not real DDL. Do not run on real DBs.
+/database/migrations/2026_10_06_000000_create_optv2_tables.php
+/database/migrations/2026_10_06_010000_create_salesit_tables.php
+/database/migrations/2026_10_06_020000_create_reporting_tables.php
+/database/migrations/2026_10_08_000000_create_prd_stub_tables.php

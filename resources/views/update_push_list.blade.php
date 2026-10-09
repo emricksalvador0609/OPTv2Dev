@@ -48,6 +48,7 @@
     <ul class="nav nav-underline" id="myTab" role="tablist">
       <li class="nav-item"><a class="nav-link p-1 active" id="home-tab" data-bs-toggle="tab" href="#updatepushlistnewtab" role="tab" aria-controls="updatepushlistnewtab" aria-selected="true">New</a></li>
       <li class="nav-item"><a class="nav-link p-1" id="profile-tab" data-bs-toggle="tab" href="#updatepushlistexisting" role="tab" aria-controls="updatepushlistexisting" aria-selected="false">Existing</a></li>
+      <li class="nav-item"><a class="nav-link p-1" id="transfer-tab" data-bs-toggle="tab" href="#updatepushlisttransfer" role="tab" aria-controls="updatepushlisttransfer" aria-selected="false">Transfer</a></li>
     </ul>
     <div class="tab-content mt-3" id="myTabContent">
             <div class="tab-pane fade show active" id="updatepushlistnewtab" role="tabpanel" aria-labelledby="home-tab">
@@ -177,6 +178,59 @@
                 </div>
             </div>
         </div>
+        <div class="tab-content mt-3" id="myTabContent">
+            <div class="tab-pane fade" id="updatepushlisttransfer" role="tabpanel" aria-labelledby="transfer-tab">
+
+                <div class="card border-300 h-100">
+                    <div class="card-header pb-1 p-2 border-bottom border-300 bg-soft">
+                        <div class="row g-3 justify-content-between align-items-end">
+                            <div class="col-12 col-md-6">
+                                <div class="input-group w-100 mb-1">
+                                    <span class="input-group-text" id="basic-addon1">
+                                        Projection Period
+                                    </span>
+                                    <select class="form-select changeisbn_projection_period" aria-label="Default select example">
+                                        <option value="" selected disabled>Select in the list</option>
+                                        @foreach (ProjectionPeriodList('0')->get() as $r)
+                                            <option value="{{ $r->DOCNUM }}">{{ projection_period_display($r->DOCNUM) }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <div class="text-md-end text-500 fs--1">
+                                    Transfer a projected title to a different ISBN when the title is wrong or a new edition replaces it.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body p-3">
+
+                        <label class="text-1000 fw-bold">List</label>
+
+                        <div class="cardpushlist">
+                            <div class="table-responsive ms-n1  scrollbar">
+                                <table id="changeisbn-projection-table" class=" table table-striped  text-center">
+                                <thead class="border border-1">
+                                    <tr>
+                                        <th scope="col" width="4%">#</th>
+                                        <th scope="col" width="15%">Temp ISBN</th>
+                                        <th scope="col" width="34%">Title</th>
+                                        <th scope="col" width="12%">Total</br> Projection</th>
+                                        <th scope="col" width="12%">Allocated</th>
+                                        <th scope="col" width="12%">Change To</th>
+                                        <th scope="col" width="13%">Last</br> Update</th>
+                                        <th scope="col" width="8%">Action</th>
+                                    </tr>
+                                </thead>
+
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
   </div>
 
 
@@ -270,6 +324,47 @@
     </form>
     </div>
  </div>
+
+ <div class="modal" id="ChangeISBNModal" tabindex="-1" aria-labelledby="ChangeISBNModal" aria-modal="true" role="dialog">
+    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content bg-100 p-3">
+        <div class="modal-header p-0">
+        <h5 class="mb-0"><span class="fw-bold">Change ISBN</span> - Transfer Projection</h5>
+        <button class="btn btn-sm btn-phoenix-secondary" data-bs-dismiss="modal" aria-label="Close"><i class="fa fa-xmark text-danger"></i></button>
+        </div>
+
+        <div class="modal-body pt-0 mt-0">
+
+                <div class="card-body pt-2 pb-0">
+                    <form class="submit_change_isbn_projection_form" method="POST">
+                        @csrf
+                        <input type="text" class="form-control d-none change_isbn_existing" name="change_isbn_existing" readonly="readonly">
+                        <input type="text" class="form-control d-none change_isbn_basedocnum" name="basedocnum" readonly="readonly">
+                        <div class="row">
+                            <div class="col-md-12 mt-2">
+                                <div class="input-group">
+                                    <span class="input-group-text w-25">Existing ISBN</span>
+                                    <span class="input-group-text status" style="background-color:white !important;" id="basic-addon1">
+                                        <span class="changeisbn_existing_display"></span>
+                                    </span>
+                                </div>
+                                <div class="input-group">
+                                    <span class="input-group-text w-25 text-center">New ISBN</span>
+                                    <input type="text" class="form-control input-sm text-center change_isbn_newisbn" name="change_isbn_newisbn" placeholder="Type New ISBN..." required="">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-0 text-end mt-3 p-3 border-top"><button type="submit" class="btn btn-sm btn-primary">Save</button></div>
+                    </form>
+                </div>
+
+        </div>
+
+    </div>
+    </div>
+ </div>
+
 {{-- 
 <div class="modal" id="UpdatePushListISBNModal"  tabindex="-1" aria-labelledby="UpdatePushListISBNModal" aria-modal="true" role="dialog">
     <div class="modal-dialog modal modal-dialog-centered">
@@ -764,6 +859,110 @@ $(document).ready(function(){
               });
 
       });
+
+        // ===== Transfer (Change ISBN) tab =====
+        function changeIsbnShowModal() {
+            var el = document.getElementById('ChangeISBNModal');
+            if (window.bootstrap && bootstrap.Modal) {
+                bootstrap.Modal.getOrCreateInstance(el).show();
+            } else {
+                $('#ChangeISBNModal').modal('show');
+            }
+        }
+
+        function changeIsbnHideModal() {
+            var el = document.getElementById('ChangeISBNModal');
+            if (window.bootstrap && bootstrap.Modal) {
+                var inst = bootstrap.Modal.getInstance(el);
+                if (inst) inst.hide();
+            } else {
+                $('#ChangeISBNModal').modal('hide');
+            }
+        }
+
+        function changeIsbnProjectionList() {
+            var basedocnum = $('.changeisbn_projection_period').val();
+
+            if (!basedocnum) return;
+
+            var changeIsbnListable = $("#changeisbn-projection-table");
+            var changeIsbnListableURL = "/datatable_changeisbn_projection_list?basedocnum=" + basedocnum;
+            var changeIsbnListableColumns = [
+                    { "data": "num" },
+                    { "data": "tempisbn" },
+                    { "data": "description" },
+                    { "data": "totalprojtn" },
+                    { "data": "allocated" },
+                    { "data": "changeto" },
+                    { "data": "dateupdate" },
+                    { "data": "action" },
+            ];
+
+            dTable(changeIsbnListable, changeIsbnListableURL, changeIsbnListableColumns, 250, "", true, '', true, 0, 0);
+        }
+
+        $(document).on('change', '.changeisbn_projection_period', function (e) {
+            changeIsbnProjectionList();
+        });
+
+        $(document).on('click', '.changeisbn_btn', function (e) {
+            var existing = $(this).data('existing');
+            var basedocnum = $('.changeisbn_projection_period').val();
+
+            $('.change_isbn_existing').val(existing);
+            $('.change_isbn_basedocnum').val(basedocnum);
+            $('.changeisbn_existing_display').text(existing);
+            $('.change_isbn_newisbn').val('');
+
+            changeIsbnShowModal();
+        });
+
+        $(document).on('submit', '.submit_change_isbn_projection_form', function (e) {
+            e.preventDefault();
+            var formData = new FormData(this);
+
+            $.ajax({
+                url: "/submit_change_isbn_projection",
+                data: formData,
+                processData: false,
+                contentType: false,
+                type: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': getCsrfToken()
+                },
+                beforeSend: function () {
+                    showLoading()
+                },
+                success: function (data) {
+                    console.log(data);
+                    hideLoading();
+
+                    if (data.status == '2') {
+
+                        changeIsbnHideModal();
+                        DataTableReload('#changeisbn-projection-table');
+                        sweetalert("Success!", "", icon = 'success', timer = '3000', btn = false);
+
+                    }
+                    else if (data.status == '403') {
+
+                        sweetalert("New ISBN not in item list", "", icon = 'warning', timer = '3000', btn = false);
+
+                    }
+                    else {
+
+                        swal("Oops...", "Something went wrong. Please contact your administrator", "error");
+                    }
+
+                },
+                error: function (data) {
+                    hideLoading();
+
+                    swal("Oops...", "Something went wrong. Please contact your administrator", "error");
+                }
+            });
+
+        });
 
 //END READY
 });
