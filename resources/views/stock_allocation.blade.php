@@ -197,11 +197,11 @@
                                 {{-- <th scope="col" class="text-center" width="7%">Finalized <br> Req.</th> --}}
                                 <th scope="col" class="text-center" width="7%">Total </br> Projection</th>
                                 {{-- <th scope="col" class="text-center px-3" width="5%">Action</th> --}}
-                                {{-- <th scope="col" class="text-center" width="3%">
+                                <th scope="col" class="text-center" width="3%">
                                     <div class="d-flex ">
                                         <input class="form-check-input stockallocateisbn_all" checked type="checkbox" value="">
                                     </div>
-                                </th> --}}
+                                </th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1039,7 +1039,7 @@ function datatable_stock_allocation_list(projdocnum){
                             <td class="text-start">${author}</td>
                           
                             <td class="text-center">${totalproj}</td>
-                            <td class="d-none text-center">${checkbox}</td>
+                            <td class="text-center">${checkbox}</td>
                         </tr>
                     `;
                 }
