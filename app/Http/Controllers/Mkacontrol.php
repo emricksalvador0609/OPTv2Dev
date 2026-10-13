@@ -10176,9 +10176,14 @@ public function approve_projection_isbn(Request $request) {
     $stockallocate_pernr_input = $request->input('pernr');
     $stockallocate_projqty_input = $request->input('projqty');
 
+    // Normalize scalar values (FormData may send arrays) - only for params that are constants across rows
+    if (is_array($stockallocate_basedocnum_input)) {
+        $stockallocate_basedocnum_input = $stockallocate_basedocnum_input[0] ?? null;
+    }
+
     $qprojperiod = projection_period_details($stockallocate_basedocnum_input);
 
-    $projectionid = $qprojperiod->PROJECTIONID;
+    $projectionid = $qprojperiod->PROJECTIONID ?? null;
     $basedocnum = $stockallocate_basedocnum_input;
 
     $noUpdate = true;
