@@ -10176,27 +10176,9 @@ public function approve_projection_isbn(Request $request) {
     $stockallocate_pernr_input = $request->input('pernr');
     $stockallocate_projqty_input = $request->input('projqty');
 
-    // Normalize scalar values (FormData may send arrays)
+    // Normalize scalar values (FormData may send arrays) - only for params that are constants across rows
     if (is_array($stockallocate_basedocnum_input)) {
         $stockallocate_basedocnum_input = $stockallocate_basedocnum_input[0] ?? null;
-    }
-    if (is_array($stockallocate_matnr_input)) {
-        $stockallocate_matnr_input = $stockallocate_matnr_input[0] ?? $stockallocate_matnr_input;
-    }
-    if (is_array($stockallocate_isbn_input)) {
-        $stockallocate_isbn_input = $stockallocate_isbn_input[0] ?? $stockallocate_isbn_input;
-    }
-    if (is_array($stockallocate_stock_allocate_qty_input)) {
-        $stockallocate_stock_allocate_qty_input = $stockallocate_stock_allocate_qty_input[0] ?? $stockallocate_stock_allocate_qty_input;
-    }
-    if (is_array($stockallocate_alloctype_input)) {
-        $stockallocate_alloctype_input = $stockallocate_alloctype_input[0] ?? $stockallocate_alloctype_input;
-    }
-    if (is_array($stockallocate_pernr_input)) {
-        $stockallocate_pernr_input = $stockallocate_pernr_input[0] ?? $stockallocate_pernr_input;
-    }
-    if (is_array($stockallocate_projqty_input)) {
-        $stockallocate_projqty_input = $stockallocate_projqty_input[0] ?? $stockallocate_projqty_input;
     }
 
     $qprojperiod = projection_period_details($stockallocate_basedocnum_input);
