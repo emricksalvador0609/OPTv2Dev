@@ -929,13 +929,12 @@ function datatable_generate_allocation_isbn(projdocnum,isbn){
                     let description        = d.description;
                     let proposereq        = d.proposereq;
              
-                    // SOH/Appoved Req.: <b>${proposereq}</b> &nbsp | &nbsp
                     aa += `
                               <tr class="isbn-group" 
                                     data-isbn="${isbn}" 
                                     data-proposereq="${proposereq}"
                                     >
-                                <td class="bg-bootstrap text-start px-1"colspan="99">  <b>${isbn}</b> &nbsp <i>${description}</i> <span class="mx-5 "></span> </td>
+                                <td class="bg-bootstrap text-start px-1"colspan="99">  <b>${isbn}</b> &nbsp <i>${description}</i> <span class="mx-5 ">SOH/Approved Req.: <b>${proposereq}</b></span> </td>
                             </tr>
                         `;
 
