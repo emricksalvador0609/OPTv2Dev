@@ -158,12 +158,12 @@
                             
                             <th scope="col" class="text-center" width="8%">Projtn</th>
                             <th scope="col" class="text-center" width="8%">Alloc.</th>
-                            <th scope="col" class="text-center" width="34%">Projtn. Breakdown</th>
+                            <th scope="col" class="text-center" width="26%">Projtn. Breakdown</th>
+                            <th scope="col" class="text-center" width="8%">Ordered</th>
                             
                             {{-- <th scope="col" class="text-center" width="8%">Transfer <br> In</th>
                             <th scope="col" class="text-center" width="8%">Transfer <br> Out</th>
                             <th scope="col" class="text-center" width="8%">Adjusted <br>Allocation</th>
-                            <th scope="col" class="text-center" width="8%">Qty <br>Ordered</th>
                             <th scope="col" class="text-center" width="8%">Allocation <br>Balance</th> --}}
                         </tr>
                     </thead>
@@ -223,6 +223,7 @@ $(document).ready(function(){
                     { "data": "projection" },
                     { "data": "allocation" },
                     { "data": "breakdown" },
+                    { "data": "ordered" },
             ];
 
             dTable(reportsStockAllocationSummaryListable, reportsStockAllocationSummaryListableURL, reportsStockAllocationSummaryListableColumns, 250,"",true,'',false,0,0);
@@ -250,6 +251,7 @@ $(document).ready(function(){
                     { "data": "projection" },
                     { "data": "allocation" },
                     { "data": "breakdown" },
+                    { "data": "ordered" },
             ];
 
             dTable(reportsStockAllocationSummaryListable, reportsStockAllocationSummaryListableURL, reportsStockAllocationSummaryListableColumns, 250,"",true,'',false,0,0);

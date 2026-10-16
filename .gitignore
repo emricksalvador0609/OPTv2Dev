@@ -9,6 +9,7 @@
 /.opencode/
 /.phpunit.result.cache
 /body.html
+/graphify-out
 
 # local-only DB bootstrap migrations: the testing database already exists and
 # these were inferred from code usage, not real DDL. Do not run on real DBs.
