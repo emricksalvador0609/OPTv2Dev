@@ -14,7 +14,11 @@ use Tests\TestCase;
  *
  * The projection link is the OMS batch/period pair
  * (prd.ZSD_OMS_SSY.BATCHID = projection DOCNUM, SCHOOLOPENING = projection PERIOD),
- * not the OMS creation date (ERDAT) the previous helper used.
+ * not the OMS creation date (ERDAT) the previous helper used. When the exact
+ * school opening matches no order, the batch as a whole is counted.
+ *
+ * Order types: only ZKB1 is excluded. Uploaded rows (UPLOADTAG = 'X') count —
+ * they are real orders; only rejected rows (DISAPPROVE = '1') are skipped.
  *
  * The test runs against an in-memory SQLite database, so it writes nothing to the
  * shared testing server. The default connection is swapped for the duration of the
@@ -201,18 +205,19 @@ class ProjectionOmsOrderedServiceTest extends TestCase
         $this->assertSame(11.0, $map[self::ISBN]['00001877']);
     }
 
-    public function test_it_skips_orders_of_other_document_types(): void
+    public function test_it_skips_the_cancelled_order_type_and_counts_the_rest(): void
     {
         $this->seedPeriod();
-        $this->seedOrder('TTOMS01', ['QTYORDERED' => 6, 'SOTYPE' => 'ZKB']);
-        $this->seedOrder('TTOMS02', ['QTYORDERED' => 1, 'SOTYPE' => 'ZOR']);
+        $this->seedOrder('TTOMS01', ['QTYORDERED' => 6, 'SOTYPE' => 'ZKB1']);
+        $this->seedOrder('TTOMS02', ['QTYORDERED' => 2, 'SOTYPE' => 'ZKB']);
+        $this->seedOrder('TTOMS03', ['QTYORDERED' => 1, 'SOTYPE' => 'ZOR']);
 
         $map = $this->service()->orderedMap(self::DOCNUM, [self::AE]);
 
-        $this->assertSame(1.0, $map[self::ISBN][self::AE]);
+        $this->assertSame(3.0, $map[self::ISBN][self::AE]);
     }
 
-    public function test_it_skips_uploaded_and_disapproved_orders(): void
+    public function test_it_counts_uploaded_orders_and_skips_disapproved_ones(): void
     {
         $this->seedPeriod();
         $this->seedOrder('TTOMS01', ['QTYORDERED' => 6, 'UPLOADTAG' => 'X']);
@@ -221,7 +226,18 @@ class ProjectionOmsOrderedServiceTest extends TestCase
 
         $map = $this->service()->orderedMap(self::DOCNUM, [self::AE]);
 
-        $this->assertSame(2.0, $map[self::ISBN][self::AE]);
+        $this->assertSame(8.0, $map[self::ISBN][self::AE]);
+    }
+
+    public function test_it_falls_back_to_the_whole_batch_when_the_period_has_no_orders(): void
+    {
+        $this->seedPeriod();
+        $this->seedOrder('TTOMS01', ['QTYORDERED' => 9, 'SCHOOLOPENING' => '4']);
+        $this->seedOrder('TTOMS02', ['QTYORDERED' => 3, 'SCHOOLOPENING' => '5']);
+
+        $map = $this->service()->orderedMap(self::DOCNUM, [self::AE]);
+
+        $this->assertSame(12.0, $map[self::ISBN][self::AE]);
     }
 
     public function test_it_returns_nothing_when_the_projection_is_unknown(): void

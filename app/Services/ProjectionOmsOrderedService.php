@@ -9,17 +9,35 @@ use Illuminate\Support\Facades\DB;
  * that projection's allocation.
  *
  * The projection link is the OMS batch/period pair:
- *   prd.ZSD_OMS_SSY.BATCHID       = projection DOCNUM  (the app's "PID")
- *   prd.ZSD_OMS_SSY.SCHOOLOPENING = projection PERIOD
- *
- * This replaces the older year-based lookup (OMS orders whose ERDAT year matched
- * the projection's school year for the same AE), which never bound the orders to
- * the allocation they were deducted from.
+ *   prd.ZSD_OMS_SSY.BATCHID       = the projection id the app calls BASEDOCNUM / PID
+ *   prd.ZSD_OMS_SSY.SCHOOLOPENING = the projection's PERIOD
+ *                                   (OPTV2PROJECTIONPERIOD.PERIOD for that DOCNUM)
  *
  * The OMS tables are maintained externally and are read-only from OPTv2.
+ *
+ * Why the filters look like this (measured on the OMS mirror, 2026-10-16):
+ *  - 46,357 orders carry a batch id, but only 476 of them have an empty
+ *    UPLOADTAG. The older lookups required UPLOADTAG = '', so they only ever
+ *    saw the hand-keyed minority and the column collapsed to 0 once the result
+ *    was bound to a batch. "X" marks rows already pushed through the OMS
+ *    interface — those are real orders, so UPLOADTAG is not filtered.
+ *   - ZKB is the dominant order type of batch-tagged orders (62%); the previous
+ *     whereNotIn(['ZKE','ZKA','ZKB']) dropped all of them. The original
+ *     allocation query excluded ZKB1 only, so that is the exclusion used here.
+ *
+ * Both points are pending confirmation from the OMS team (which order types and
+ * which upload state count as "deducted from the allocation").
  */
 final class ProjectionOmsOrderedService
 {
+    /**
+     * Order types that are not a deduction from the allocation. The original
+     * allocation query on this column excluded ZKB1 only.
+     *
+     * @var array<int, string>
+     */
+    private const EXCLUDED_SOTYPES = ['ZKB1'];
+
     public function __construct(private string $connection = 'OMSL')
     {
     }
@@ -27,7 +45,7 @@ final class ProjectionOmsOrderedService
     /**
      * Ordered quantity per ISBN and AE for one projection.
      *
-     * @param  string        $basedocnum projection DOCNUM (PID), e.g. "137"
+     * @param  string        $basedocnum projection id (BASEDOCNUM / PID), e.g. "260"
      * @param  array<string> $pernrs     AE / PERNR list; empty = every AE
      * @return array<string, array<string, float>> [EAN11][PERNR] => quantity
      */
@@ -39,6 +57,55 @@ final class ProjectionOmsOrderedService
             return [];
         }
 
+        $opening = trim((string) $projectionPeriod->PERIOD);
+        $rows = $this->rows($basedocnum, $pernrs, $opening !== '' ? $opening : null);
+
+        // Some OMS rows carry the batch with a school opening other than the
+        // projection's own period (one batch can cover several openings). When
+        // the exact opening matches nothing, fall back to the whole batch so the
+        // column still shows what was deducted from the allocation. The fallback
+        // only runs when the exact match is empty, so no order is ever counted
+        // twice.
+        if ($rows->isEmpty()) {
+            $rows = $this->rows($basedocnum, $pernrs, null);
+        }
+
+        $map = [];
+
+        foreach ($rows as $row) {
+            $map[$row->EAN11][trim($row->PERNR)] = (float) $row->OMSQTY;
+        }
+
+        return $map;
+    }
+
+    /**
+     * Ordered quantity per ISBN for one projection, every AE summed.
+     *
+     * @param  string        $basedocnum projection id (PID), e.g. "137"
+     * @param  array<string> $pernrs     AE / PERNR list; empty = every AE
+     * @return array<string, float> [EAN11] => quantity
+     */
+    public function orderedByIsbn(string $basedocnum, array $pernrs = []): array
+    {
+        $map = [];
+
+        foreach ($this->orderedMap($basedocnum, $pernrs) as $isbn => $perAe) {
+            $map[$isbn] = array_sum($perAe);
+        }
+
+        return $map;
+    }
+
+    /**
+     * One pass over the OMS order tables.
+     *
+     * @param  array<string>              $pernrs        AE / PERNR list; empty = every AE
+     * @param  string|null                $schoolOpening NULL = every opening of the batch
+     * @return \Illuminate\Support\Collection
+     */
+    private function rows(string $basedocnum, array $pernrs, ?string $schoolOpening)
+    {
         $query = DB::connection($this->connection)
             ->table('prd.ZSD_OMS_SSY as t3')
             ->join('prd.ZSD_OMSH as t1', function ($join) {
@@ -50,10 +117,11 @@ final class ProjectionOmsOrderedService
                     ->on('t2.MANDT', '=', 't1.MANDT');
             })
             ->where('t3.BATCHID', $basedocnum)
-            ->where('t3.SCHOOLOPENING', (string) $projectionPeriod->PERIOD)
+            ->when($schoolOpening !== null, function ($q) use ($schoolOpening) {
+                $q->where('t3.SCHOOLOPENING', $schoolOpening);
+            })
             ->where('t1.MANDT', '888')
-            ->whereNotIn('t1.SOTYPE', ['ZKE', 'ZKA', 'ZKB'])
-            ->where('t1.UPLOADTAG', '')
+            ->whereNotIn('t1.SOTYPE', self::EXCLUDED_SOTYPES)
             ->where('t1.DISAPPROVE', '<>', '1')
             ->whereNotNull('t2.EAN11')
             ->groupBy('t2.EAN11', 't1.PERNR')
@@ -63,31 +131,6 @@ final class ProjectionOmsOrderedService
             $query->whereIn('t1.PERNR', $pernrs);
         }
 
-        $map = [];
-
-        foreach ($query->get() as $row) {
-            $map[$row->EAN11][trim($row->PERNR)] = (float) $row->OMSQTY;
-        }
-
-        return $map;
-    }
-
-    /**
-     * Ordered quantity per ISBN for one projection, every AE summed together.
-     *
-     * Used where the caller reports per title rather than per AE (dashboard).
-     *
-     * @param  array<string> $pernrs AE / PERNR list; empty = every AE
-     * @return array<string, float> [EAN11] => quantity
-     */
-    public function orderedByIsbn(string $basedocnum, array $pernrs = []): array
-    {
-        $map = [];
-
-        foreach ($this->orderedMap($basedocnum, $pernrs) as $isbn => $byAe) {
-            $map[$isbn] = array_sum($byAe);
-        }
-
-        return $map;
+        return $query->get();
     }
 }

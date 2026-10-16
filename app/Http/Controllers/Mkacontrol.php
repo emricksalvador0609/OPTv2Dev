@@ -2703,7 +2703,11 @@ return $s->isbn;
             }
 
 //better performance to get data per isbn??
-            $omsData = get_omstransact_isbn($isbnlist,$basedocnum);
+            // 2026-10-16: helper signature is ($isbn, $pernr, $year), but the projection
+            // id was passed as $pernr, so the query looked for an AE named after the
+            // projection ("260"), matched nothing, and onorderoms / Ordered was always 0.
+            // Kept for traceability; replacement is App\Services\ProjectionOmsOrderedService.
+            // $omsData = get_omstransact_isbn($isbnlist,$basedocnum);
             $pulloutData = get_pullout_isbn($isbnlist);
             $sohData = get_soh_isbn($isbnlist);
             $onpoData = get_onpo_isbn($isbnlist);
@@ -2714,9 +2718,15 @@ return $s->isbn;
                 $allocatedMap[$d5->EAN11] = round($d5->TOTALALLOCATED) ?? 0;
             }
 
+            // 2026-10-16: Ordered now comes straight from the OMS batch link.
+            // Kept for traceability; the old rows came from get_omstransact_isbn() above.
+            // $omsMap = [];
+            // foreach ($omsData as $d1) {
+            //     $omsMap[$d1->EAN11] = round($d1->OMSQTY) ?? 0;
+            // }
             $omsMap = [];
-            foreach ($omsData as $d1) {
-                $omsMap[$d1->EAN11] = round($d1->OMSQTY) ?? 0;
+            foreach ((new ProjectionOmsOrderedService())->orderedByIsbn($basedocnum) as $omsIsbn => $omsQty) {
+                $omsMap[$omsIsbn] = round($omsQty);
             }
 
             $pulloutMap = [];
@@ -3061,7 +3071,11 @@ foreach ($isbnPrev3YearSalesHistory as $salesData) {
             }
 
             //better performance to get data per isbn??
-            $omsData = get_omstransact_isbn($isbnlist,$basedocnum);
+            // 2026-10-16: helper signature is ($isbn, $pernr, $year); the projection id was
+            // passed as $pernr, so the query matched no AE and Ordered / onorderoms was always
+            // 0 on this list too. Kept for traceability; replacement is
+            // App\Services\ProjectionOmsOrderedService.
+            // $omsData = get_omstransact_isbn($isbnlist,$basedocnum);
             $pulloutData = get_pullout_isbn($isbnlist);
             $sohData = get_soh_isbn($isbnlist);
             $onpoData = get_onpo_isbn($isbnlist);
@@ -3079,9 +3093,15 @@ foreach ($isbnPrev3YearSalesHistory as $salesData) {
             }
          
 
+            // 2026-10-16: Ordered now comes straight from the OMS batch link.
+            // Kept for traceability; the old rows came from get_omstransact_isbn() above.
+            // $omsMap = [];
+            // foreach ($omsData as $row) {
+            //     $omsMap[$row->EAN11] = round($row->OMSQTY) ?? 0;
+            // }
             $omsMap = [];
-            foreach ($omsData as $row) {
-                $omsMap[$row->EAN11] = round($row->OMSQTY) ?? 0;
+            foreach ((new ProjectionOmsOrderedService())->orderedByIsbn($basedocnum) as $omsIsbn => $omsQty) {
+                $omsMap[$omsIsbn] = round($omsQty);
             }
 
             $pulloutMap = [];
