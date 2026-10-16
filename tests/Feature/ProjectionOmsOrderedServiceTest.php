@@ -240,6 +240,25 @@ class ProjectionOmsOrderedServiceTest extends TestCase
         $this->assertSame(12.0, $map[self::ISBN][self::AE]);
     }
 
+    public function test_it_counts_an_order_once_when_its_batch_link_is_duplicated(): void
+    {
+        $this->seedPeriod();
+        $this->seedOrder('TTOMS01', ['QTYORDERED' => 25]);
+
+        // The OMS tables can carry the same order against the same batch and
+        // opening more than once. The order quantity is still deducted once.
+        DB::connection('mysql')->table('prd.ZSD_OMS_SSY')->insert([
+            'MANDT'         => '888',
+            'ORDNUM'        => 'TTOMS01',
+            'BATCHID'       => self::DOCNUM,
+            'SCHOOLOPENING' => self::PERIOD,
+        ]);
+
+        $map = $this->service()->orderedMap(self::DOCNUM, [self::AE]);
+
+        $this->assertSame(25.0, $map[self::ISBN][self::AE]);
+    }
+
     public function test_it_returns_nothing_when_the_projection_is_unknown(): void
     {
         $this->seedOrder('TTOMS01', ['QTYORDERED' => 6]);
