@@ -62,6 +62,7 @@ use App\Models\CustPos;
 use App\Models\TblBudget;
 use App\Models\NewSales;
 use App\Models\OPTv2Justification;
+use App\Services\ProjectionOmsOrderedService;
 use Auth;
 use DB;
 use PDF;
@@ -3901,12 +3902,18 @@ public function datatable_dashboard_allocationsummary_list (Request $request) {
 //---------alloc req out
 
 //ordered
-$qOrdered = get_year_omstransact_isbn($pernr,$basedocnum);
+// 2026-10-16: arguments were passed in the wrong order. Helper signature is
+// ($isbn, $pernr, $year), but the AE list was passed as $isbn and the DOCNUM as
+// $pernr, so the query never matched and Ordered / Alloc. Balance were always 0.
+// Kept for traceability; replacement is App\Services\ProjectionOmsOrderedService.
+// $qOrdered = get_year_omstransact_isbn($pernr,$basedocnum);
+//
+// $dorderedMap = [];
+// foreach ($qOrdered as $d3) {
+//     $dorderedMap[$d3->EAN11] = $d3->OMSQTY;
+// }
 
-$dorderedMap = [];
-foreach ($qOrdered as $d3) {
-    $dorderedMap[$d3->EAN11] = $d3->OMSQTY;
-}
+$dorderedMap = (new ProjectionOmsOrderedService())->orderedByIsbn($basedocnum, $pernr);
 //---------ordered
 
 // dd($dballocInMap);
@@ -4624,6 +4631,14 @@ public function datatable_dashboard_projectionsummary_list (Request $request) {
         $dballocOutMap[$d1->EAN11] = $d2->TOTALQTYREQOUT;
     }
 //---------alloc req out
+
+//ordered
+// 2026-10-16: Ordered was never wired on this dashboard (hardcoded 0 below), so
+// the column read 0 and Alloc. Balance was overstated by the ordered quantity.
+// OMS lookup added via App\Services\ProjectionOmsOrderedService, same batch/period
+// link as the Allocations Summary dashboard and the Stock Allocation Summary report.
+$dorderedMap = (new ProjectionOmsOrderedService())->orderedByIsbn($basedocnum, $pernr);
+//---------ordered
  
 
     foreach($response as &$res){
@@ -4635,7 +4650,10 @@ public function datatable_dashboard_projectionsummary_list (Request $request) {
         $allocrate = 0;
         $allocin = $dballocInMap[$isbn] ?? 0;
         $allocout =  $dballocOutMap[$isbn] ?? 0;
-        $ordered =   0;
+        // 2026-10-16: was hardcoded 0 (OMS never wired on this dashboard); kept for
+        // traceability. See the $dorderedMap build above.
+        // $ordered =   0;
+        $ordered =   $dorderedMap[$isbn] ?? 0;
         $allocrate = ($projtn > 0) 
                 ? round(($allocated / $projtn) * 100) 
                 : 0;
@@ -8144,13 +8162,19 @@ $queryprojectiond =  OPTv2Projectiond::from('OPTV2PROJECTIOND as t1')
         else {
 
             //ordered
-                $pernr = filter_user_list_in_projection()->pluck('PERNR')->toArray();;
-                $qOrdered = get_year_omstransact_isbn_pernr($pernr,$basedocnum);
+                $pernr = filter_user_list_in_projection()->pluck('PERNR')->toArray();
 
-                $dorderedMap = [];
-                foreach ($qOrdered as $d3) {
-                    $dorderedMap[$d3->EAN11][trim($d3->PERNR)] = $d3->OMSQTY;
-                }
+                // 2026-10-16: this keyed OMS orders by creation year + AE, so it never
+                // matched the allocation the column is meant to explain. Kept for
+                // traceability; replacement is App\Services\ProjectionOmsOrderedService.
+                // $qOrdered = get_year_omstransact_isbn_pernr($pernr,$basedocnum);
+                //
+                // $dorderedMap = [];
+                // foreach ($qOrdered as $d3) {
+                //     $dorderedMap[$d3->EAN11][trim($d3->PERNR)] = $d3->OMSQTY;
+                // }
+
+                $dorderedMap = (new ProjectionOmsOrderedService())->orderedMap($basedocnum, $pernr);
             //---------ordered
             
             // dd($dorderedMap);
