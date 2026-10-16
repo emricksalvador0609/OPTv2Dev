@@ -106,19 +106,31 @@ final class ProjectionOmsOrderedService
      */
     private function rows(string $basedocnum, array $pernrs, ?string $schoolOpening)
     {
-        $query = DB::connection($this->connection)
-            ->table('prd.ZSD_OMS_SSY as t3')
-            ->join('prd.ZSD_OMSH as t1', function ($join) {
-                $join->on('t1.ORDNUM', '=', 't3.ORDNUM')
-                    ->on('t1.MANDT', '=', 't3.MANDT');
+        $connection = DB::connection($this->connection);
+
+        // The same order can be tagged to the same batch and opening more than
+        // once in ZSD_OMS_SSY (19 such links on the OMS mirror). Joining the raw
+        // table multiplied the item quantities once per duplicate tag, so the
+        // link is reduced to one row per order first. The batch and opening are
+        // filtered inside the subquery, so only the rows of the requested batch
+        // are de-duplicated.
+        $link = $connection->table('prd.ZSD_OMS_SSY')
+            ->select('ORDNUM', 'MANDT')
+            ->where('BATCHID', $basedocnum)
+            ->when($schoolOpening !== null, function ($q) use ($schoolOpening) {
+                $q->where('SCHOOLOPENING', $schoolOpening);
+            })
+            ->distinct();
+
+        $query = $connection
+            ->table('prd.ZSD_OMSH as t1')
+            ->joinSub($link, 't3', function ($join) {
+                $join->on('t3.ORDNUM', '=', 't1.ORDNUM')
+                    ->on('t3.MANDT', '=', 't1.MANDT');
             })
             ->join('prd.ZSD_OMSD as t2', function ($join) {
                 $join->on('t2.ORDNUM', '=', 't1.ORDNUM')
                     ->on('t2.MANDT', '=', 't1.MANDT');
-            })
-            ->where('t3.BATCHID', $basedocnum)
-            ->when($schoolOpening !== null, function ($q) use ($schoolOpening) {
-                $q->where('t3.SCHOOLOPENING', $schoolOpening);
             })
             ->where('t1.MANDT', '888')
             ->whereNotIn('t1.SOTYPE', self::EXCLUDED_SOTYPES)
