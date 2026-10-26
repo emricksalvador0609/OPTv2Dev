@@ -63,6 +63,7 @@ use App\Models\TblBudget;
 use App\Models\NewSales;
 use App\Models\OPTv2Justification;
 use App\Services\ProjectionOmsOrderedService;
+use App\Services\StockAllocationSummaryService;
 use Auth;
 use DB;
 use PDF;
@@ -8110,174 +8111,13 @@ $queryprojectiond =  OPTv2Projectiond::from('OPTV2PROJECTIOND as t1')
 
     public function datatable_reports_stockallocationsummary(Request $request) {
 
-        $isbn = $request->query('isbn');
-        $pernr = $request->query('pernr');
-        $division = $request->query('division');
-        $basedocnum = $request->query('basedocnum');
-
-        $_qstockallocated = OPTv2Allocated::from('OPTV2ALLOCATED as t1')
-                            ->where('BASEDOCNUM',$basedocnum)
-                            ->where('t1.PROJECTION','<>','0')
-                            ->selectRaw("
-                                     *,
-                                     (SELECT TOP 1 DESCRIPTION FROM OPTV2PROJECTIOND t2 WHERE t2.EAN11 = t1.EAN11 ) as DESCRIPTION,
-                                     (SELECT TOP 1 PERNRNAME FROM OPTV2PROJECTIONH t3 WHERE t3.PERNR = t1.PERNR ORDER BY id DESC ) as PERNRNAME
-                                     
-                            ")
-                            ->orderBy('EAN11','DESC');
-
-              
-        $_qstockallocationbreakdown = OPTv2Projectiond::from('OPTV2PROJECTIOND as t1')
-                        ->leftjoin('OPTV2PROJECTIONH as t2','t1.DOCNUM','=','t2.DOCNUM')
-                        ->selectRaw("
-                            t1.EAN11,
-                            t2.BSA,
-                            t1.PERNR,
-                            t1.BRANCHWHOUSE,
-                            MAX(t2.PERNRNAME) as PERNRNAME,
-                            SUM(CAST(t1.QTY AS INT)) as TOTALPROJTN
-                        ")
-                        ->where('t1.BASEDOCNUM', $basedocnum)
-                        ->whereNotNull('t1.APPROVED')
-                        ->groupBy('t1.EAN11','t2.BSA','t1.PERNR','t1.BRANCHWHOUSE')
-                        ;
-        if($division !== '1') {
-            
-            $pernrList = OPTv2User::where(
-                                DB::raw('UPPER(LTRIM(RTRIM(DIVISION)))'),
-                            'LIKE',
-                            '%'.strtoupper($division).'%')
-                    ->pluck('PERNR')
-                    ->toArray();
-                    ;
-            $_qstockallocated->whereIn('PERNR',$pernrList);
-            $_qstockallocationbreakdown->whereIn('t1.PERNR',$pernrList);
-
-        }
-
-        if($pernr !== '1') {
-
-            $_qstockallocated->where('PERNR',$pernr);
-            $_qstockallocationbreakdown->where('t1.PERNR',$pernr);
-        }
-
-        $num = 0;
-
-        $qstockallocated = $_qstockallocated->get();
-// group breakdown by EAN11 + BSA
-
-        $qstockallocationbreakdown = $_qstockallocationbreakdown->get();
-        $breakdownGrouped = $qstockallocationbreakdown->groupBy(function ($item) {
-            return $item->EAN11 . '-' . $item->BSA . '-' . trim($item->PERNR);
-        });
-
-
-        if($qstockallocated->isEmpty()) {
-
-            $response = [
-                "num" => 0
-            ];
-
-        }
-        else {
-
-            //ordered
-                $pernr = filter_user_list_in_projection()->pluck('PERNR')->toArray();
-
-                // 2026-10-16: this keyed OMS orders by creation year + AE, so it never
-                // matched the allocation the column is meant to explain. Kept for
-                // traceability; replacement is App\Services\ProjectionOmsOrderedService.
-                // $qOrdered = get_year_omstransact_isbn_pernr($pernr,$basedocnum);
-                //
-                // $dorderedMap = [];
-                // foreach ($qOrdered as $d3) {
-                //     $dorderedMap[$d3->EAN11][trim($d3->PERNR)] = $d3->OMSQTY;
-                // }
-
-                $dorderedMap = (new ProjectionOmsOrderedService())->orderedMap($basedocnum, $pernr);
-            //---------ordered
-            
-            // dd($dorderedMap);
-            foreach ($qstockallocated as $r){
-                $num++;
-                $isbn = $r->EAN11;
-                $matnr = $r->MATNR;
-                $pernr = $r->PERNR;
-                $pernrname = $r->PERNRNAME;
-                $alloctype = $r->ALLOCTYPE;
-                $description = $r->DESCRIPTION;
-                $allocation = $r->QTY;
-                $projection = $r->PROJECTION;
-                $ordered =   $dorderedMap[$isbn][trim($pernr)] ?? 0;
-                $orderedDisplay = number_format($ordered);
-                $titlename = htmlspecialchars($description, ENT_QUOTES, 'UTF-8');
-                $descriptionDisplay = '<span title="'.$description.'" class="line-clamp-1">'.$description.'</span>';
-         
-                // $nonbsaqtyDisplay = number_format($nonbsaqty);
-
-                $bsa = $alloctype == 'nonbsa' ? '0' : '1';
-
-            // get breakdown for this item
-                $key = $isbn . '-' . $bsa . '-' . trim($pernr);
-                $breakdown = $breakdownGrouped->has($key) ? $breakdownGrouped[$key] : collect();
-
-                $breakdownList = $breakdown->map(function ($b) {
-                    return $b['BRANCHWHOUSE'] . '<span class="text-warning fw-bold">(' . $b['TOTALPROJTN']. ')</span>';
-                })->implode(', ');
-                
-                $pernrnameDisplay = '<span title="'.$pernrname.'" class="line-clamp-1">'. $pernr . ' ' . $pernrname.'</span>' ;
-
-                $isbnDisplay = ' <div class="d-flex justify-content-between "> • ' . $isbn . '  <span class="text-primary w-75 fw-bold"> ' .$descriptionDisplay . '</span></div>';
-               
-                $isbnDisplay = $isbn;
-                $response[] = array (
-                    "num" => $num,
-                    "isbn" => $isbnDisplay,
-                    "description" => $descriptionDisplay,
-                    "type" => $alloctype,
-                    "allocation" => $allocation,
-                    "pernr" => $pernr,
-                    "ordered" => $orderedDisplay,
-                    "pernrname" => $pernrnameDisplay,
-                    "projection" => $projection,
-                    "breakdown" => '*' . $breakdownList,
-            
-                );
-
-
-            }
-
-        }
-      
-
-        // $breakdownGrouped = $qprojectiondbreakdown->groupBy(function ($item) {
-        //     return $item->EAN11 . '-' . $item->BSA;
-        // });
-        
-        // $response = [];
-        
-        // if ($qprojectiond->isEmpty()) {
-        //     $response = ["num" => 0];
-        // } else {
-        //     $num = 0;
-        //     foreach ($qprojectiond as $risbnprojd) {
-        //         $num++;
-        //         $isbn = $risbnprojd->EAN11;
-        //         $bsa = $risbnprojd->BSA;
-        //         $description = $risbnprojd->DESCRIPTION;
-        //         $totalprojtn = $risbnprojd->TOTALPROJTN;
-                
-        //         $descriptiontruncate = truncatelimitWords($description, 37);
-        //         $descriptionDisplay = '<span class="line-clamp-1" title="'.$description.'"> '.$description.' </span>';
-        
-        //         $bsaDisplay = $bsa == '1' ? 'BSA' : 'Non-BSA';
-        
-        //         // get breakdown for this item
-        //         $key = $isbn . '-' . $bsa;
-        //         $breakdown = $breakdownGrouped->has($key) ? $breakdownGrouped[$key] : collect();
-        
-        
-        return response()->json($response);
+        return response()->json(
+            (new StockAllocationSummaryService())->response(
+                (string) $request->query('basedocnum'),
+                $request->query('pernr'),
+                $request->query('division')
+            )
+        );
 
     }
 
