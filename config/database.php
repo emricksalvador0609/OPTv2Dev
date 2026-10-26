@@ -58,6 +58,8 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
+            'encrypt' => env('DB_ENCRYPT'),
+            'trust_server_certificate' => env('DB_TRUST_SERVER_CERTIFICATE'),
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
@@ -65,7 +67,7 @@ return [
 
 
         'budgeting' => [
-            'driver' => 'mysql',
+            'driver' => env('DB_DRIVER_BUDGETING', 'mysql'),
             'host' => env('DB_HOST_BUDGETING', '52.221.154.99'),
             'port' => env('DB_PORT_BUDGETING', '3307'),
             'url' => env('DATABASE_URL'),
@@ -79,13 +81,15 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
+            'encrypt' => env('DB_ENCRYPT_BUDGETING'),
+            'trust_server_certificate' => env('DB_TRUST_SERVER_CERTIFICATE_BUDGETING'),
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
         ],
 
         'salesdata' => [
-            'driver' => 'mysql',
+            'driver' => env('DB_DRIVER_SALESDATA', 'mysql'),
             'host' => env('DB_HOST_SALESDATA', '52.221.154.99'),
             'port' => env('DB_PORT_SALESDATA', '3307'),
             'url' => env('DATABASE_URL'),
@@ -99,6 +103,8 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
+            'encrypt' => env('DB_ENCRYPT_SALESDATA'),
+            'trust_server_certificate' => env('DB_TRUST_SERVER_CERTIFICATE_SALESDATA'),
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
@@ -112,6 +118,8 @@ return [
             'database' => env('DB_DATABASE_PRD109', 'forge'),
             'username' => env('DB_USERNAME_PRD109', 'forge'),
             'password' => env('DB_PASSWORD_PRD109', ''),
+            'encrypt' => env('DB_ENCRYPT_PRD109', 'yes'),
+            'trust_server_certificate' => env('DB_TRUST_SERVER_CERTIFICATE_PRD109', 'no'),
             'unix_socket' => env('DB_SOCKET', ''),
             'charset' => 'utf8mb4',
             'collation' => 'utf8mb4_unicode_ci',
@@ -132,6 +140,8 @@ return [
             'database' => env('DB_DATABASE_OMSL', 'forge'),
             'username' => env('DB_USERNAME_OMSL', 'forge'),
             'password' => env('DB_PASSWORD_OMSL', ''),
+            'encrypt' => env('DB_ENCRYPT_OMSL', 'yes'),
+            'trust_server_certificate' => env('DB_TRUST_SERVER_CERTIFICATE_OMSL', 'no'),
             'unix_socket' => env('DB_SOCKET', ''),
             'charset' => 'utf8mb4',
             'collation' => 'utf8mb4_unicode_ci',
@@ -152,6 +162,8 @@ return [
             'database' => env('DB_DATABASE_PRD', 'forge'),
             'username' => env('DB_USERNAME_PRD', 'forge'),
             'password' => env('DB_PASSWORD_PRD', ''),
+            'encrypt' => env('DB_ENCRYPT_PRD', 'yes'),
+            'trust_server_certificate' => env('DB_TRUST_SERVER_CERTIFICATE_PRD', 'no'),
             'unix_socket' => env('DB_SOCKET', ''),
             'charset' => 'utf8mb4',
             'collation' => 'utf8mb4_unicode_ci',

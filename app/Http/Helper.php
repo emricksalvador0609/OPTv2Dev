@@ -1326,6 +1326,88 @@ if (!function_exists('yourFunction')) {
 
       }
 
+      //ADDED BY EMRICK oct 6 2026
+      function get_year_omstransact_isbn_pernr($pernr, $basedocnum)
+      {
+            $projectionPeriod = projection_period_details($basedocnum);
+
+            if (!$projectionPeriod) {
+                  return collect();
+            }
+
+            // Example: "2026-2027" -> 2026
+            $schoolYear = trim($projectionPeriod->YEAR);
+            $yearParts  = explode('-', $schoolYear);
+            $year       = trim($yearParts[0]);
+
+            $q = ZsdOmsh::from('prd.ZSD_OMSH as t1')
+                  ->join('prd.ZSD_OMSD as t2', function ($q) {
+                        $q->on('t1.ORDNUM', '=', 't2.ORDNUM')
+                        ->on('t1.MANDT', '=', 't2.MANDT');
+                  })
+                  ->selectRaw('
+                        t1.MANDT,
+                        t1.PERNR,
+                        t2.MATNR,
+                        t2.EAN11,
+                        SUM(t2.QTYORDERED) as OMSQTY
+                  ')
+                  ->where('t1.MANDT', '888')
+                  ->whereNotIn('t1.SOTYPE', ['ZKE', 'ZKA', 'ZKB'])
+                  ->where('t1.UPLOADTAG', '')
+                  ->where('t1.DISAPPROVE', '<>', '1')
+                  ->where('t1.ERDAT', 'LIKE', '%' . $year . '%')
+                  ->whereNotNull('t2.EAN11')
+                  ->groupBy(
+                        't1.MANDT',
+                        't1.PERNR',
+                        't2.MATNR',
+                        't2.EAN11'
+                  );
+
+            if (!empty($pernr)) {
+                  if (is_array($pernr)) {
+                        $q->whereIn('t1.PERNR', $pernr);
+                  } else {
+                        $q->where('t1.PERNR', $pernr);
+                  }
+            }
+
+            return $q->get();
+      }
+
+
+      function get_year_omstransact_isbn_pernr_pertitle($isbn, $pernr, $basedocnum)
+      {
+            $projectionPeriod = projection_period_details($basedocnum);
+
+            if (!$projectionPeriod) {
+                  return 0;
+            }
+
+            // Example: "2026-2027" -> 2026
+            $schoolYear = trim($projectionPeriod->YEAR);
+            $yearParts  = explode('-', $schoolYear);
+            $year       = trim($yearParts[0]);
+
+            $q = ZsdOmsh::from('prd.ZSD_OMSH as t1')
+                  ->join('prd.ZSD_OMSD as t2', function ($q) {
+                        $q->on('t1.ORDNUM', '=', 't2.ORDNUM')
+                        ->on('t1.MANDT', '=', 't2.MANDT');
+                  })
+                  ->where('t1.MANDT', '888')
+                  ->whereNotIn('t1.SOTYPE', ['ZKE', 'ZKA', 'ZKB'])
+                  ->where('t1.UPLOADTAG', '')
+                  ->where('t1.DISAPPROVE', '<>', '1')
+                  ->where('t1.ERDAT', 'LIKE', '%' . $year . '%')
+                  ->where('t1.PERNR', $pernr)
+                  ->where('t2.EAN11', $isbn)
+                  ->selectRaw('COALESCE(SUM(t2.QTYORDERED), 0) as OMSQTY')
+                  ->first();
+
+            return $q ? (float) $q->OMSQTY : 0;
+      }
+
       function projection_period_details($basedocnum) {
 
 

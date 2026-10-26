@@ -62,6 +62,8 @@ use App\Models\CustPos;
 use App\Models\TblBudget;
 use App\Models\NewSales;
 use App\Models\OPTv2Justification;
+use App\Services\ProjectionOmsOrderedService;
+use App\Services\StockAllocationSummaryService;
 use Auth;
 use DB;
 use PDF;
@@ -820,6 +822,38 @@ return $s->isbn;
         $sessionpernr = trim(session('pernr'));
 
         $pernr[] = $pernrurl;
+
+        // Guard: dashboard fires this with basedocnum=null when the AE has no
+        // submitted projections yet (period dropdown empty). DOCNUM is INT, so
+        // the string 'null' made SQL Server throw SQLSTATE[22018] / 500.
+        if ($basedocnum === null || trim($basedocnum) === '' || trim($basedocnum) === 'null') {
+            return response()->json([
+                'maindashboardcount' => [
+                    "totalprojection" => 0,
+                    "totalfinalprojection" => 0,
+                    "totalprojection_amount" => "0.00",
+                    "totalreturned" => 0,
+                    "totalreturned_amount" => "0.00",
+                    "totalprojectionapproved" => 0,
+                    "totalprojectionapproved_amount" => "0.00",
+                    "totalprojectionpending" => 0,
+                    "totalprojectionpending_amount" => "0.00",
+                    "totalallocation" => 0,
+                    "totalallocation_amount" => 0,
+                    "projperiodstatus" => '-',
+                    "notyetallocated" => 0,
+                    "totalallocated" => 0,
+                    "unserved" => 0,
+                    "unservedPercent" => 0,
+                    "notYetAllocatedPercent" => 0,
+                    "allocatedPercent" => 0,
+                    "projtnpercentcomplete" => '<span class="fw-bold fs--1 text-700 rounded-3">-</span>',
+                ],
+                'allocatedchart' => ["bsasummary_count" => 0, "nonbsasummary_count" => 0],
+                'typesummarygraph' => ["bsasummary_count" => 0, "nonbsasummary_count" => 0],
+                'top10isbn' => [[0, "-"]],
+            ]);
+        }
 
         if($pernrurl == '1') {
 
@@ -2673,7 +2707,11 @@ return $s->isbn;
             }
 
 //better performance to get data per isbn??
-            $omsData = get_omstransact_isbn($isbnlist,$basedocnum);
+            // 2026-10-16: helper signature is ($isbn, $pernr, $year), but the projection
+            // id was passed as $pernr, so the query looked for an AE named after the
+            // projection ("260"), matched nothing, and onorderoms / Ordered was always 0.
+            // Kept for traceability; replacement is App\Services\ProjectionOmsOrderedService.
+            // $omsData = get_omstransact_isbn($isbnlist,$basedocnum);
             $pulloutData = get_pullout_isbn($isbnlist);
             $sohData = get_soh_isbn($isbnlist);
             $onpoData = get_onpo_isbn($isbnlist);
@@ -2684,9 +2722,15 @@ return $s->isbn;
                 $allocatedMap[$d5->EAN11] = round($d5->TOTALALLOCATED) ?? 0;
             }
 
+            // 2026-10-16: Ordered now comes straight from the OMS batch link.
+            // Kept for traceability; the old rows came from get_omstransact_isbn() above.
+            // $omsMap = [];
+            // foreach ($omsData as $d1) {
+            //     $omsMap[$d1->EAN11] = round($d1->OMSQTY) ?? 0;
+            // }
             $omsMap = [];
-            foreach ($omsData as $d1) {
-                $omsMap[$d1->EAN11] = round($d1->OMSQTY) ?? 0;
+            foreach ((new ProjectionOmsOrderedService())->orderedByIsbn($basedocnum) as $omsIsbn => $omsQty) {
+                $omsMap[$omsIsbn] = round($omsQty);
             }
 
             $pulloutMap = [];
@@ -3031,11 +3075,20 @@ foreach ($isbnPrev3YearSalesHistory as $salesData) {
             }
 
             //better performance to get data per isbn??
-            $omsData = get_omstransact_isbn($isbnlist,$basedocnum);
+            // 2026-10-16: helper signature is ($isbn, $pernr, $year); the projection id was
+            // passed as $pernr, so the query matched no AE and Ordered / onorderoms was always
+            // 0 on this list too. Kept for traceability; replacement is
+            // App\Services\ProjectionOmsOrderedService.
+            // $omsData = get_omstransact_isbn($isbnlist,$basedocnum);
             $pulloutData = get_pullout_isbn($isbnlist);
             $sohData = get_soh_isbn($isbnlist);
             $onpoData = get_onpo_isbn($isbnlist);
-            $misopenpoData =  get_misopenpo();
+            // get_misopenpo() was never defined — commit ef67415 shipped the call, production
+            // fatals with "Call to undefined function". Reverted to get_onpo_isbn() (pre-ef67415
+            // behavior). Intended source: MIS DB (172.16.0.199), tables empty + MATNR-keyed —
+            // blocked until team defines which table refreshes + MATNR->EAN11 mapping.
+            // $misopenpoData =  get_misopenpo();
+            // $misopenpoData =  get_misopenpo();
             $allocatedData = getAllocatedMainProjectionDeductSOH ($basedocnum,$isbnlist);
 
             $allocatedMap = [];
@@ -3044,9 +3097,15 @@ foreach ($isbnPrev3YearSalesHistory as $salesData) {
             }
          
 
+            // 2026-10-16: Ordered now comes straight from the OMS batch link.
+            // Kept for traceability; the old rows came from get_omstransact_isbn() above.
+            // $omsMap = [];
+            // foreach ($omsData as $row) {
+            //     $omsMap[$row->EAN11] = round($row->OMSQTY) ?? 0;
+            // }
             $omsMap = [];
-            foreach ($omsData as $row) {
-                $omsMap[$row->EAN11] = round($row->OMSQTY) ?? 0;
+            foreach ((new ProjectionOmsOrderedService())->orderedByIsbn($basedocnum) as $omsIsbn => $omsQty) {
+                $omsMap[$omsIsbn] = round($omsQty);
             }
 
             $pulloutMap = [];
@@ -3059,12 +3118,18 @@ foreach ($isbnPrev3YearSalesHistory as $salesData) {
                 $sohMap[$row->EAN11] = round($row->SOHQTY) ?? 0;
             }
             $onpoMap = [];
-            // foreach ($onpoData as $d4) {
-            //     $onpoMap[$d4->EAN11] = round($d4->ONPOQTY) ?? 0;
-            // }
-            foreach ($misopenpoData as $isbn => $qty) {
-                $onpoMap[$isbn] = round($qty) ?? 0;
+            foreach ($onpoData as $d4) {
+                $onpoMap[$d4->EAN11] = round($d4->ONPOQTY) ?? 0;
             }
+            // foreach ($misopenpoData as $isbn => $qty) {
+            //     $onpoMap[$isbn] = round($qty) ?? 0;
+            // }
+            foreach ($onpoData as $d4) {
+                $onpoMap[$d4->EAN11] = round($d4->ONPOQTY) ?? 0;
+            }
+            // foreach ($misopenpoData as $isbn => $qty) {
+            //     $onpoMap[$isbn] = round($qty) ?? 0;
+            // }
 //------------------------
 
 //ISBN sales per 3 years 
@@ -3861,12 +3926,18 @@ public function datatable_dashboard_allocationsummary_list (Request $request) {
 //---------alloc req out
 
 //ordered
-$qOrdered = get_year_omstransact_isbn($pernr,$basedocnum);
+// 2026-10-16: arguments were passed in the wrong order. Helper signature is
+// ($isbn, $pernr, $year), but the AE list was passed as $isbn and the DOCNUM as
+// $pernr, so the query never matched and Ordered / Alloc. Balance were always 0.
+// Kept for traceability; replacement is App\Services\ProjectionOmsOrderedService.
+// $qOrdered = get_year_omstransact_isbn($pernr,$basedocnum);
+//
+// $dorderedMap = [];
+// foreach ($qOrdered as $d3) {
+//     $dorderedMap[$d3->EAN11] = $d3->OMSQTY;
+// }
 
-$dorderedMap = [];
-foreach ($qOrdered as $d3) {
-    $dorderedMap[$d3->EAN11] = $d3->OMSQTY;
-}
+$dorderedMap = (new ProjectionOmsOrderedService())->orderedByIsbn($basedocnum, $pernr);
 //---------ordered
 
 // dd($dballocInMap);
@@ -4584,6 +4655,14 @@ public function datatable_dashboard_projectionsummary_list (Request $request) {
         $dballocOutMap[$d1->EAN11] = $d2->TOTALQTYREQOUT;
     }
 //---------alloc req out
+
+//ordered
+// 2026-10-16: Ordered was never wired on this dashboard (hardcoded 0 below), so
+// the column read 0 and Alloc. Balance was overstated by the ordered quantity.
+// OMS lookup added via App\Services\ProjectionOmsOrderedService, same batch/period
+// link as the Allocations Summary dashboard and the Stock Allocation Summary report.
+$dorderedMap = (new ProjectionOmsOrderedService())->orderedByIsbn($basedocnum, $pernr);
+//---------ordered
  
 
     foreach($response as &$res){
@@ -4595,7 +4674,10 @@ public function datatable_dashboard_projectionsummary_list (Request $request) {
         $allocrate = 0;
         $allocin = $dballocInMap[$isbn] ?? 0;
         $allocout =  $dballocOutMap[$isbn] ?? 0;
-        $ordered =   0;
+        // 2026-10-16: was hardcoded 0 (OMS never wired on this dashboard); kept for
+        // traceability. See the $dorderedMap build above.
+        // $ordered =   0;
+        $ordered =   $dorderedMap[$isbn] ?? 0;
         $allocrate = ($projtn > 0) 
                 ? round(($allocated / $projtn) * 100) 
                 : 0;
@@ -8032,168 +8114,13 @@ $queryprojectiond =  OPTv2Projectiond::from('OPTV2PROJECTIOND as t1')
 
     public function datatable_reports_stockallocationsummary(Request $request) {
 
-        $isbn = $request->query('isbn');
-        $pernr = $request->query('pernr');
-        $division = $request->query('division');
-        $basedocnum = $request->query('basedocnum');
-
-        $_qstockallocated = OPTv2Allocated::from('OPTV2ALLOCATED as t1')
-                            ->where('BASEDOCNUM',$basedocnum)
-                            ->where('t1.PROJECTION','<>','0')
-                            ->selectRaw("
-                                     *,
-                                     (SELECT TOP 1 DESCRIPTION FROM OPTV2PROJECTIOND t2 WHERE t2.EAN11 = t1.EAN11 ) as DESCRIPTION,
-                                     (SELECT TOP 1 PERNRNAME FROM OPTV2PROJECTIONH t3 WHERE t3.PERNR = t1.PERNR ORDER BY id DESC ) as PERNRNAME
-                                     
-                            ")
-                            ->orderBy('EAN11','DESC');
-
-              
-        $_qstockallocationbreakdown = OPTv2Projectiond::from('OPTV2PROJECTIOND as t1')
-                        ->leftjoin('OPTV2PROJECTIONH as t2','t1.DOCNUM','=','t2.DOCNUM')
-                        ->selectRaw("
-                            t1.EAN11,
-                            t2.BSA,
-                            t1.PERNR,
-                            t1.BRANCHWHOUSE,
-                            MAX(t2.PERNRNAME) as PERNRNAME,
-                            SUM(CAST(t1.QTY AS INT)) as TOTALPROJTN
-                        ")
-                        ->where('t1.BASEDOCNUM', $basedocnum)
-                        ->whereNotNull('t1.APPROVED')
-                        ->groupBy('t1.EAN11','t2.BSA','t1.PERNR','t1.BRANCHWHOUSE')
-                        ;
-        if($division !== '1') {
-            
-            $pernrList = OPTv2User::where(
-                                DB::raw('UPPER(LTRIM(RTRIM(DIVISION)))'),
-                            'LIKE',
-                            '%'.strtoupper($division).'%')
-                    ->pluck('PERNR')
-                    ->toArray();
-                    ;
-            $_qstockallocated->whereIn('PERNR',$pernrList);
-            $_qstockallocationbreakdown->whereIn('t1.PERNR',$pernrList);
-
-        }
-
-        if($pernr !== '1') {
-
-            $_qstockallocated->where('PERNR',$pernr);
-            $_qstockallocationbreakdown->where('t1.PERNR',$pernr);
-        }
-
-        $num = 0;
-
-        $qstockallocated = $_qstockallocated->get();
-// group breakdown by EAN11 + BSA
-
-        $qstockallocationbreakdown = $_qstockallocationbreakdown->get();
-        $breakdownGrouped = $qstockallocationbreakdown->groupBy(function ($item) {
-            return $item->EAN11 . '-' . $item->BSA . '-' . trim($item->PERNR);
-        });
-
-
-        if($qstockallocated->isEmpty()) {
-
-            $response = [
-                "num" => 0
-            ];
-
-        }
-        else {
-
-            //ordered
-                $pernr = filter_user_list_in_projection()->pluck('PERNR')->toArray();;
-                $qOrdered = get_year_omstransact_isbn_pernr($pernr,$basedocnum);
-
-                $dorderedMap = [];
-                foreach ($qOrdered as $d3) {
-                    $dorderedMap[$d3->EAN11][trim($d3->PERNR)] = $d3->OMSQTY;
-                }
-            //---------ordered
-            
-            // dd($dorderedMap);
-            foreach ($qstockallocated as $r){
-                $num++;
-                $isbn = $r->EAN11;
-                $matnr = $r->MATNR;
-                $pernr = $r->PERNR;
-                $pernrname = $r->PERNRNAME;
-                $alloctype = $r->ALLOCTYPE;
-                $description = $r->DESCRIPTION;
-                $allocation = $r->QTY;
-                $projection = $r->PROJECTION;
-                $ordered =   $dorderedMap[$isbn][trim($pernr)] ?? 0;
-                $orderedDisplay = number_format($ordered);
-                $titlename = htmlspecialchars($description, ENT_QUOTES, 'UTF-8');
-                $descriptionDisplay = '<span title="'.$description.'" class="line-clamp-1">'.$description.'</span>';
-         
-                // $nonbsaqtyDisplay = number_format($nonbsaqty);
-
-                $bsa = $alloctype == 'nonbsa' ? '0' : '1';
-
-            // get breakdown for this item
-                $key = $isbn . '-' . $bsa . '-' . trim($pernr);
-                $breakdown = $breakdownGrouped->has($key) ? $breakdownGrouped[$key] : collect();
-
-                $breakdownList = $breakdown->map(function ($b) {
-                    return $b['BRANCHWHOUSE'] . '<span class="text-warning fw-bold">(' . $b['TOTALPROJTN']. ')</span>';
-                })->implode(', ');
-                
-                $pernrnameDisplay = '<span title="'.$pernrname.'" class="line-clamp-1">'. $pernr . ' ' . $pernrname.'</span>' ;
-
-                $isbnDisplay = ' <div class="d-flex justify-content-between "> • ' . $isbn . '  <span class="text-primary w-75 fw-bold"> ' .$descriptionDisplay . '</span></div>';
-               
-                $isbnDisplay = $isbn;
-                $response[] = array (
-                    "num" => $num,
-                    "isbn" => $isbnDisplay,
-                    "description" => $descriptionDisplay,
-                    "type" => $alloctype,
-                    "allocation" => $allocation,
-                    "pernr" => $pernr,
-                    "ordered" => $orderedDisplay,
-                    "pernrname" => $pernrnameDisplay,
-                    "projection" => $projection,
-                    "breakdown" => '*' . $breakdownList,
-            
-                );
-
-
-            }
-
-        }
-      
-
-        // $breakdownGrouped = $qprojectiondbreakdown->groupBy(function ($item) {
-        //     return $item->EAN11 . '-' . $item->BSA;
-        // });
-        
-        // $response = [];
-        
-        // if ($qprojectiond->isEmpty()) {
-        //     $response = ["num" => 0];
-        // } else {
-        //     $num = 0;
-        //     foreach ($qprojectiond as $risbnprojd) {
-        //         $num++;
-        //         $isbn = $risbnprojd->EAN11;
-        //         $bsa = $risbnprojd->BSA;
-        //         $description = $risbnprojd->DESCRIPTION;
-        //         $totalprojtn = $risbnprojd->TOTALPROJTN;
-                
-        //         $descriptiontruncate = truncatelimitWords($description, 37);
-        //         $descriptionDisplay = '<span class="line-clamp-1" title="'.$description.'"> '.$description.' </span>';
-        
-        //         $bsaDisplay = $bsa == '1' ? 'BSA' : 'Non-BSA';
-        
-        //         // get breakdown for this item
-        //         $key = $isbn . '-' . $bsa;
-        //         $breakdown = $breakdownGrouped->has($key) ? $breakdownGrouped[$key] : collect();
-        
-        
-        return response()->json($response);
+        return response()->json(
+            (new StockAllocationSummaryService())->response(
+                (string) $request->query('basedocnum'),
+                $request->query('pernr'),
+                $request->query('division')
+            )
+        );
 
     }
 
@@ -8382,8 +8309,8 @@ $queryprojectiond =  OPTv2Projectiond::from('OPTV2PROJECTIOND as t1')
                             ->selectRaw("PERNR,
                                 MAX(EAN11) as EAN11,
                                 MAX(MATNR) as MATNR,
-                                SUM(CASE WHEN ALLOCTYPE = 'bsa' THEN QTY ELSE 0 END)  as BSAQTY,
-                                SUM(CASE WHEN ALLOCTYPE = 'nonbsa' THEN QTY ELSE 0 END) as NONBSAQTY
+                                SUM(CASE WHEN ALLOCTYPE = 'bsa' THEN CAST(QTY AS INT) ELSE 0 END)  as BSAQTY,
+                                SUM(CASE WHEN ALLOCTYPE = 'nonbsa' THEN CAST(QTY AS INT) ELSE 0 END) as NONBSAQTY
                             ")
                             ->orderBy('PERNR','DESC')
                             ->groupBy('PERNR')
@@ -8948,7 +8875,7 @@ $queryprojectiond =  OPTv2Projectiond::from('OPTV2PROJECTIOND as t1')
                                 // ->groupBy('prd.CRMMOTHERLOOKUP.NAME')
                                 ->where(function( $querya) use ($customer) {
                                     $querya->where('CUSTNO','LIKE','%'.$customer.'%')
-                                            ->orWhereRaw('CONTAINS(TAGS, ?)', ['"'.$customer.'"'])
+                                            ->orWhere('TAGS','LIKE','%'.$customer.'%')
                                             ;
                                             // ->orWhere('NAME', 'LIKE', '%"'.$customer.'"%');
                                          })
@@ -10136,9 +10063,14 @@ public function approve_projection_isbn(Request $request) {
     $stockallocate_pernr_input = $request->input('pernr');
     $stockallocate_projqty_input = $request->input('projqty');
 
+    // Normalize scalar values (FormData may send arrays) - only for params that are constants across rows
+    if (is_array($stockallocate_basedocnum_input)) {
+        $stockallocate_basedocnum_input = $stockallocate_basedocnum_input[0] ?? null;
+    }
+
     $qprojperiod = projection_period_details($stockallocate_basedocnum_input);
 
-    $projectionid = $qprojperiod->PROJECTIONID;
+    $projectionid = $qprojperiod->PROJECTIONID ?? null;
     $basedocnum = $stockallocate_basedocnum_input;
 
     $noUpdate = true;
