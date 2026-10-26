@@ -40,6 +40,25 @@ class DatabaseTargetGuardTest extends TestCase
         $this->assertTrue(true);
     }
 
+    public function test_allowlisted_test_database_is_allowed()
+    {
+        DatabaseTargetGuard::assertSafe([
+            'mysql' => $this->sqlsrvConnection('127.0.0.1', 'optv2_test'),
+        ]);
+
+        $this->assertTrue(true);
+    }
+
+    public function test_unknown_loopback_database_is_refused()
+    {
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('optv2_live');
+
+        DatabaseTargetGuard::assertSafe([
+            'mysql' => $this->sqlsrvConnection('127.0.0.1', 'optv2_live'),
+        ]);
+    }
+
     public function test_testing_server_host_is_refused()
     {
         $this->expectException(\RuntimeException::class);
