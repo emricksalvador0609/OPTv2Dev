@@ -21,8 +21,31 @@
         <server name="APP_ENV" value="testing"/>
         <server name="BCRYPT_ROUNDS" value="4"/>
         <server name="CACHE_DRIVER" value="array"/>
-        <!-- <server name="DB_CONNECTION" value="sqlite"/> -->
-        <!-- <server name="DB_DATABASE" value=":memory:"/> -->
+        <!-- Tests may never reach the shared testing server (172.16.0.199 / REY).
+             Pinned to the local Docker MSSQL container, separate database.
+             DB_PASSWORD is NOT overridden: it comes from .env, so run the suite
+             with the LOCAL block active (user `sa`). With OFFICE active the
+             suite fails at login instead of touching REY - that is intended.
+             Tests\Support\DatabaseTargetGuard aborts earlier if anything drifts. -->
+        <server name="DB_CONNECTION" value="mysql"/>
+        <server name="DB_HOST" value="127.0.0.1"/>
+        <server name="DB_PORT" value="1433"/>
+        <server name="DB_DATABASE" value="optv2_test"/>
+        <server name="DB_USERNAME" value="sa"/>
+        <!-- Same pinning for the SAP-mirror connections: tests must not read or
+             write the mirror at 172.16.0.199 even if .env has it active. -->
+        <server name="DB_HOST_OMSL" value="127.0.0.1"/>
+        <server name="DB_PORT_OMSL" value="1433"/>
+        <server name="DB_DATABASE_OMSL" value="optv2_test"/>
+        <server name="DB_USERNAME_OMSL" value="sa"/>
+        <server name="DB_HOST_PRD" value="127.0.0.1"/>
+        <server name="DB_PORT_PRD" value="1433"/>
+        <server name="DB_DATABASE_PRD" value="optv2_test"/>
+        <server name="DB_USERNAME_PRD" value="sa"/>
+        <server name="DB_HOST_PRD199" value="127.0.0.1"/>
+        <server name="DB_PORT_PRD199" value="1433"/>
+        <server name="DB_DATABASE_PRD199" value="optv2_test"/>
+        <server name="DB_USERNAME_PRD199" value="sa"/>
         <server name="MAIL_MAILER" value="array"/>
         <server name="QUEUE_CONNECTION" value="sync"/>
         <server name="SESSION_DRIVER" value="array"/>
