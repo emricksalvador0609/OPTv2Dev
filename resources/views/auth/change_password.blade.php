@@ -31,12 +31,6 @@
     <p class="password-subtitle">Update your account password</p>
     @if($requiredChange)<p id="password-required-message" class="text-danger fs--1">Please update your password to continue using OPT. Sign out ends your session.</p>@endif
     <hr>
-    @if(session('password_updated'))
-        <div class="alert alert-soft-success d-flex align-items-center justify-content-between" role="status">
-            <span>{{ session('password_updated') }}</span>
-            <a class="btn btn-sm btn-success" href="{{ route('dashboard_admin') }}">Continue to OPT</a>
-        </div>
-    @endif
     <form method="POST" action="{{ route('password.update') }}" id="password-form" novalidate
           data-rules='@json($rules)' data-has-errors="{{ $errors->any() ? '1' : '0' }}">
         @csrf
@@ -61,7 +55,7 @@
             <ul class="password-rules" aria-live="polite"><li id="password-match" class="text-danger" hidden><span class="rule-mark" aria-hidden="true">×</span><span class="match-text">Passwords do not match</span></li></ul>
         </div>
         <div class="d-flex gap-2">
-            <button type="submit" class="btn btn-primary btn-sm">Save password</button>
+            <button type="submit" id="password-save" class="btn btn-primary btn-sm">Save password</button>
             @if($requiredChange)
                 <button type="button" id="password-back" class="btn btn-phoenix-secondary btn-sm">Back</button>
             @else
@@ -78,6 +72,15 @@
         </div>
     </aside>
 @if($requiredChange)</dialog>@else</main>@endif
+<div class="loading" id="password-loading" hidden>
+    <div class="spinner">
+        <div></div>
+        <div></div>
+        <div></div>
+        <div></div>
+        <div></div>
+    </div>
+</div>
 <script src="{{ asset_v('assets/js/features/change_password.js') }}"></script>
 </body>
 </html>

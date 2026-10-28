@@ -105,7 +105,9 @@ class PasswordChangeTest extends TestCase
         $response = $this->withSession(['staff' => 1])->get('/change-password');
         $response->assertOk()
             ->assertSeeInOrder(['Sign out', 'Change password', 'Change password for TEST.USER', 'CURRENT PASSWORD', 'NEW PASSWORD',
-                'Use at least 8 characters.', 'Do not start with a number.', 'CONFIRM NEW PASSWORD', 'Save password', 'Back', 'Advisory']);
+                'Use at least 8 characters.', 'Do not start with a number.', 'CONFIRM NEW PASSWORD', 'Save password', 'Back', 'Advisory'])
+            ->assertSee('id="password-save"', false)
+            ->assertSee('id="password-loading"', false);
         // Only the notice may sign the user out; the form itself must not.
         $this->assertSame(1, substr_count($response->getContent(), 'form="password-exit"'));
     }
@@ -139,11 +141,8 @@ class PasswordChangeTest extends TestCase
         DB::table('OPTV2USER')->insert(['id' => 2, 'USERNAME' => 'OTHER', 'PASSWORD' => 'unchanged', 'ACTIVE' => '1']);
         $this->withSession(['staff' => 1])->post('/change-password', [
             'id' => 2, 'current_password' => 'old', 'password' => 'NewPassword123', 'password_confirmation' => 'NewPassword123',
-        ])->assertRedirect(route('password.edit'))->assertSessionHas('password_updated');
-        $this->get('/change-password')->assertSee('alert-soft-success', false)
-            ->assertSee('Continue to OPT', false)
-            ->assertSee('href="' . route('dashboard_admin') . '"', false)
-            ->assertDontSee('Sign out', false);
+        ])->assertRedirect(route('dashboard_admin'));
+        $this->get('/change-password')->assertDontSee('Sign out', false);
         $this->assertSame('NewPassword123', DB::table('OPTV2USER')->where('id', 1)->value('PASSWORD'));
         $this->assertSame('unchanged', DB::table('OPTV2USER')->where('id', 2)->value('PASSWORD'));
         $this->post('/change-password/exit')->assertRedirect(route('login_page'))->assertSessionMissing('staff');
@@ -167,7 +166,7 @@ class PasswordChangeTest extends TestCase
         ])->assertSessionHasErrors('current_password');
         $this->withSession(['staff' => 1])->post('/change-password', [
             'current_password' => ' old ', 'password' => 'NewPassword123', 'password_confirmation' => 'NewPassword123',
-        ])->assertRedirect(route('password.edit'))->assertSessionHas('password_updated');
+        ])->assertRedirect(route('dashboard_admin'));
         DB::table('OPTV2USER')->where('id', 1)->update(['ACTIVE' => '0']);
         $this->get('/change-password')->assertRedirect(route('login_page'));
     }

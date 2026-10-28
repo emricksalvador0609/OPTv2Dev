@@ -70,11 +70,44 @@
         markField(confirmation, matches);
     }
 
-    [password, confirmation, current].forEach(input => input.addEventListener('input', validate));
-    // Client hints stay helpers only; the server validates again on submit.
+    const save = document.getElementById('password-save');
+    const loading = document.getElementById('password-loading');
+    const back = document.getElementById('password-back');
+
+    // Keep the button off until every rule passes; the server still checks on submit.
+    function syncSubmitState() {
+        const valid = form.checkValidity();
+        if (save) save.disabled = !valid;
+        return valid;
+    }
+
+    [password, confirmation, current].forEach(input => input.addEventListener('input', () => {
+        validate();
+        syncSubmitState();
+    }));
+    // Autofill can skip input events; re-check on change and once the page settles.
+    form.addEventListener('change', () => {
+        validate();
+        syncSubmitState();
+    });
+    window.addEventListener('load', () => {
+        validate();
+        syncSubmitState();
+    });
+
     form.addEventListener('submit', event => {
         validate();
-        if (!form.checkValidity()) event.preventDefault();
+        if (!syncSubmitState()) {
+            event.preventDefault();
+            return;
+        }
+        // Match the dashboard: cover the page until the server answers.
+        if (loading) loading.removeAttribute('hidden');
+        [save, back].forEach(button => {
+            if (button) button.disabled = true;
+        });
     });
+
     validate();
+    syncSubmitState();
 })();
