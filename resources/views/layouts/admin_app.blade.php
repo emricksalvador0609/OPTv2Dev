@@ -894,6 +894,7 @@ table.dataTable thead th {
 
 
 <div class="content">
+    @include('partials.password_notice')
     <div class="row">
         <div class="col-12 col-lg-12 ">
             <h4 class="mb-2 text-1100 fw-bold fs-md-2"><span class="calendar-day d-block d-md-inline mb-1">

@@ -62,6 +62,8 @@ class PasswordChangeTest extends TestCase
             config(["database.connections.$name" => ['driver' => 'sqlite', 'database' => ':memory:', 'prefix' => '']]);
         }
         config(['database.default' => 'mysql', 'session.driver' => 'array', 'cache.default' => 'array']);
+        // Existing tests describe hard enforcement; warn-mode tests override this per test.
+        config(['password_policy.mode' => 'enforce', 'password_policy.notice_until' => null]);
         Schema::connection('mysql')->create('OPTV2USER', function (Blueprint $table) {
             $table->increments('id');
             foreach (['USERNAME', 'PASSWORD', 'ACTIVE', 'PERNR', 'RSM', 'SSM', 'RANK', 'APLEVEL', 'DIVISION'] as $column) {
@@ -72,6 +74,35 @@ class PasswordChangeTest extends TestCase
         DB::table('OPTV2USER')->insert([
             'id' => 1, 'USERNAME' => 'TEST.USER', 'PASSWORD' => 'old', 'ACTIVE' => '1',
         ]);
+    }
+
+    public function test_warn_mode_shows_a_dismissible_banner_instead_of_blocking()
+    {
+        config(['password_policy.mode' => 'warn', 'password_policy.notice_until' => null]);
+        \Illuminate\Support\Facades\Route::middleware('web')->get('/password-warn-probe', function () {
+            return response('Allowed');
+        });
+
+        $this->withSession(['staff' => 1])->get('/password-warn-probe')
+            ->assertOk()->assertSee('Allowed')->assertSessionHas('staff');
+
+        $html = view('partials.password_notice', ['passwordChangeNotice' => ['deadline' => null]])->render();
+        $this->assertStringContainsString('alert-warning', $html);
+        $this->assertStringContainsString('alert-dismissible', $html);
+        $this->assertStringContainsString('data-bs-dismiss="alert"', $html);
+        $this->assertStringContainsString(route('password.edit'), $html);
+    }
+
+    public function test_warn_mode_enforces_after_the_deadline_and_renders_it()
+    {
+        $html = view('partials.password_notice', ['passwordChangeNotice' => ['deadline' => '2026-11-05 00:00:00']])->render();
+        $this->assertStringContainsString('5 Nov 2026', $html);
+
+        config(['password_policy.mode' => 'warn', 'password_policy.notice_until' => now()->subMinute()->toDateTimeString()]);
+        \Illuminate\Support\Facades\Route::middleware('web')->get('/password-warn-probe', function () {
+            return response('Allowed');
+        });
+        $this->withSession(['staff' => 1])->get('/password-warn-probe')->assertRedirect(route('password.edit'));
     }
 
     public function test_policy_matches_the_reference_and_is_configurable()

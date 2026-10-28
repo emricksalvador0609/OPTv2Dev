@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Models\OPTv2User;
 use App\Support\PasswordPolicy;
+use Carbon\Carbon;
 use Closure;
 use Illuminate\Http\Request;
 
@@ -38,6 +39,13 @@ class RequirePasswordChange
             $request->session()->put('password_policy_check', $check);
         }
         if ($check['required']) {
+            if (!$this->enforced()) {
+                // Warn mode: let the session continue and let the layout show a dismissible notice.
+                view()->share('passwordChangeNotice', [
+                    'deadline' => config('password_policy.notice_until'),
+                ]);
+                return $next($request);
+            }
             if ($request->expectsJson()) {
                 return response()->json([
                     'code' => 'PASSWORD_CHANGE_REQUIRED',
@@ -48,5 +56,27 @@ class RequirePasswordChange
             return redirect()->route('password.edit');
         }
         return $next($request);
+    }
+
+    /**
+     * Enforcement is off in warn mode until the configured deadline passes.
+     */
+    private function enforced(): bool
+    {
+        if (config('password_policy.mode', 'warn') === 'enforce') {
+            return true;
+        }
+
+        $until = config('password_policy.notice_until');
+        if (empty($until)) {
+            return false;
+        }
+
+        try {
+            return now()->greaterThanOrEqualTo(Carbon::parse($until));
+        } catch (\Exception $e) {
+            // A malformed deadline must not block people; stay in warn mode.
+            return false;
+        }
     }
 }
