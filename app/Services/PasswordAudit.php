@@ -32,21 +32,14 @@ class PasswordAudit
     }
 
     /**
-     * Password change entries, newest first, optionally filtered by username or employee number.
+     * Password change entries, newest first. Filtering and paging are done by DataTables.
      */
-    public function passwordChanges(string $search = '', int $perPage = 25)
+    public function passwordChanges()
     {
         return OPTv2Logs::query()
             ->where('LOGTYPE', self::LOG_TYPE)
-            ->when($search !== '', function ($query) use ($search) {
-                $query->where(function ($query) use ($search) {
-                    $query->where('REFERENCE', 'like', '%' . $search . '%')
-                        ->orWhere('USERID', 'like', '%' . $search . '%');
-                });
-            })
             ->orderByDesc('DOCDATE')
             ->orderByDesc('id')
-            ->paginate($perPage)
-            ->withQueryString();
+            ->get();
     }
 }

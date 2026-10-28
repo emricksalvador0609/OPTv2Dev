@@ -66,43 +66,38 @@ class AuditLogTest extends TestCase
     public function test_guests_are_redirected_and_non_admins_are_refused()
     {
         $this->get('/audit-log')->assertRedirect(route('login_page'));
+        $this->get('/datatable_audit_log')->assertRedirect(route('login_page'));
         $this->withSession(['staff' => 1, 'rank' => 'AE'])->get('/audit-log')->assertForbidden();
+        $this->withSession(['staff' => 1, 'rank' => 'AE'])->get('/datatable_audit_log')->assertForbidden();
     }
 
-    public function test_only_password_change_entries_are_listed_newest_first()
+    public function test_page_renders_a_bootstrap_datatable()
+    {
+        $this->admin()->get('/audit-log')->assertOk()
+            ->assertSee('id="audit-log-table"', false)
+            ->assertSee('assets/js/features/audit_log.js', false)
+            ->assertSee('assets/css/features/audit_log.css', false);
+    }
+
+    public function test_data_endpoint_returns_only_password_changes_newest_first()
     {
         $this->log('MARIA.S', '1500123', '2026-10-28 09:12:00');
         $this->log('JOSE.P', '1500456', '2026-10-28 15:40:00');
         $this->log('MARIA.S', '1500123', '2026-10-28 08:00:00', 'changeisbn', '9781234567890');
 
-        $this->admin()->get('/audit-log')->assertOk()
-            ->assertSeeInOrder(['JOSE.P', 'MARIA.S', 'password changed'])
-            ->assertDontSee('9781234567890')
-            ->assertSee('Password changes');
+        $response = $this->admin()->getJson('/datatable_audit_log')->assertOk();
+        $rows = $response->json();
+
+        $this->assertCount(2, $rows);
+        $this->assertSame(['JOSE.P', 'MARIA.S'], array_column($rows, 'reference'));
+        $this->assertSame([1, 2], array_column($rows, 'num'));
+        $this->assertSame('28 Oct 2026 15:40', $rows[0]['docdate']);
+        $this->assertSame('password changed', $rows[0]['remarks']);
+        $this->assertStringNotContainsString('9781234567890', $response->getContent());
     }
 
-    public function test_search_matches_username_or_employee_number()
+    public function test_data_endpoint_is_empty_when_nothing_is_logged()
     {
-        $this->log('MARIA.S', '1500123', '2026-10-28 09:12:00');
-        $this->log('JOSE.P', '1500456', '2026-10-28 15:40:00');
-
-        $this->admin()->get('/audit-log?q=MARIA')->assertOk()
-            ->assertSee('MARIA.S')->assertDontSee('JOSE.P');
-        $this->admin()->get('/audit-log?q=1500456')->assertOk()
-            ->assertSee('JOSE.P')->assertDontSee('MARIA.S');
-    }
-
-    public function test_empty_state_and_pagination()
-    {
-        $this->admin()->get('/audit-log')->assertOk()->assertSee('No password changes recorded yet.');
-
-        foreach (range(1, 30) as $i) {
-            $this->log('USER' . $i, '1500000', sprintf('2026-10-%02d 08:00:00', $i % 28 + 1));
-        }
-
-        $this->admin()->get('/audit-log')->assertOk()
-            ->assertSee('of 30')->assertSee('Showing 1–25');
-        $this->admin()->get('/audit-log?page=2')->assertOk()
-            ->assertSee('Showing 26–30');
+        $this->admin()->getJson('/datatable_audit_log')->assertOk()->assertExactJson([]);
     }
 }

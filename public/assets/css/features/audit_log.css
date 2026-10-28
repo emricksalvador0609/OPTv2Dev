@@ -11,3 +11,13 @@
 .audit-log-table tbody tr:last-child td {
     border-bottom: 0;
 }
+/* The table lives inside a card with no padding, so keep DataTables controls tidy. */
+.audit-log-table_wrapper .dataTables_filter,
+.audit-log-table_wrapper .dataTables_length,
+.audit-log-table_wrapper .dataTables_info,
+.audit-log-table_wrapper .dataTables_paginate {
+    padding: 0.75rem 1rem;
+}
+.audit-log-table_wrapper .dataTables_filter input {
+    margin-left: 0.5rem;
+}
