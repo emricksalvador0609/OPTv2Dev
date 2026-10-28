@@ -871,6 +871,7 @@ table.dataTable thead th {
                          <li class="nav-item"><a class="nav-link px-3" href="#!"> <span class="me-2 text-900" data-feather="user-plus"></span>Add another account</a></li>
                       </ul>
                       --}}
+                      <div class="px-3 mb-2"><a class="btn btn-phoenix-secondary w-100" href="{{ route('password.edit') }}">Change password</a></div>
                       <div class="px-3"> <a class="btn btn-phoenix-secondary d-flex flex-center w-100" href="{{ route('logoff_admin') }}"> 
                          <span class="me-2" data-feather="log-out"> </span>Sign out</a>
                       </div>
@@ -893,6 +894,7 @@ table.dataTable thead th {
 
 
 <div class="content">
+    @include('partials.password_notice')
     <div class="row">
         <div class="col-12 col-lg-12 ">
             <h4 class="mb-2 text-1100 fw-bold fs-md-2"><span class="calendar-day d-block d-md-inline mb-1">
@@ -2862,6 +2864,10 @@ $(document).ready(function() {
     
     //CHECK SESSION EXPIRES USING LARAVE MIDDLEWARE---
     $(document).ajaxError(function (event, xhr) {
+        if (xhr.status === 403 && xhr.responseJSON && xhr.responseJSON.code === 'PASSWORD_CHANGE_REQUIRED') {
+            window.location.replace("{{ route('password.edit') }}");
+            return;
+        }
         if (xhr.status == 401) {
             alert("Session has expired. Please log in again.");
         }

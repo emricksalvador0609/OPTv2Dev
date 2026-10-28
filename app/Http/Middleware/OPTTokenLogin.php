@@ -17,23 +17,10 @@ class OPTTokenLogin
         //     return $next($request);
         // }
 
-        $segment = request()->segments();
-        if( count($segment) > 1 &&  $segment[1] == 'createprojection')  {
-
-       
-            $date_now = date_now('dateonly');
-            $op = OPTv2ProjectionPeriod::whereDate('ENDDATE', '<', $date_now)
-            ->where('STATUS', '!=', 0)
-            ->update(['STATUS' => 0])
-            // ->get()
-            ;
-
-                // dd(response()->json($op));
-
-        }
 
         // kung may token, attempt auto-login
         if ($request->filled('tk')) {
+            $request->session()->forget('password_policy_check');
 
 
             $token = $request->query('tk');
@@ -63,6 +50,14 @@ class OPTTokenLogin
             }
         }
 
-        return $next($request);
+        // Token login sets the identity after the web middleware ran; enforce the policy again.
+        return app(RequirePasswordChange::class)->handle($request, function ($request) use ($next) {
+            $segment = $request->segments();
+            if (count($segment) > 1 && $segment[1] === 'createprojection') {
+                OPTv2ProjectionPeriod::whereDate('ENDDATE', '<', date_now('dateonly'))
+                    ->where('STATUS', '!=', 0)->update(['STATUS' => 0]);
+            }
+            return $next($request);
+        });
     }
 }

@@ -2044,4 +2044,17 @@ function capitalizeDecent($string) {
 
       }
 
+if (!function_exists('asset_v')) {
+    /**
+     * Public asset URL with a filemtime cache-buster. Falls back to asset() when missing.
+     */
+    function asset_v($path)
+    {
+        $path = ltrim((string) $path, '/');
+        $file = public_path($path);
+
+        return asset($path) . (is_file($file) ? '?v=' . filemtime($file) : '');
+    }
+}
+
 ?>
