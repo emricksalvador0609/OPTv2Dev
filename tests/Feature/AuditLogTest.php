@@ -92,7 +92,7 @@ class AuditLogTest extends TestCase
         $this->assertSame(['JOSE.P', 'MARIA.S'], array_column($rows, 'reference'));
         $this->assertSame([1, 2], array_column($rows, 'num'));
         $this->assertSame('28 Oct 2026 15:40', $rows[0]['docdate']);
-        $this->assertSame('password changed', $rows[0]['remarks']);
+        $this->assertSame('Password Changed', $rows[0]['remarks']);
         $this->assertStringNotContainsString('9781234567890', $response->getContent());
     }
 

@@ -27,7 +27,7 @@ class AuditLogController extends Controller
                 'num' => ++$number,
                 'reference' => $entry->REFERENCE,
                 'userid' => $entry->USERID,
-                'remarks' => $entry->REMARKS,
+                'remarks' => \Illuminate\Support\Str::headline((string) $entry->REMARKS),
                 'docdate' => $entry->DOCDATE
                     ? Carbon::parse($entry->DOCDATE)->format('d M Y H:i')
                     : '',
