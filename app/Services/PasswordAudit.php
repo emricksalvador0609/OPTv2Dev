@@ -30,4 +30,23 @@ class PasswordAudit
             Log::warning('Password audit log failed: ' . $e->getMessage());
         }
     }
+
+    /**
+     * Password change entries, newest first, optionally filtered by username or employee number.
+     */
+    public function passwordChanges(string $search = '', int $perPage = 25)
+    {
+        return OPTv2Logs::query()
+            ->where('LOGTYPE', self::LOG_TYPE)
+            ->when($search !== '', function ($query) use ($search) {
+                $query->where(function ($query) use ($search) {
+                    $query->where('REFERENCE', 'like', '%' . $search . '%')
+                        ->orWhere('USERID', 'like', '%' . $search . '%');
+                });
+            })
+            ->orderByDesc('DOCDATE')
+            ->orderByDesc('id')
+            ->paginate($perPage)
+            ->withQueryString();
+    }
 }
