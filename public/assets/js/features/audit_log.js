@@ -12,7 +12,7 @@
             { data: 'reference' },
             { data: 'userid' },
             { data: 'remarks' },
-            { data: 'docdate' },
+            { data: { _: 'docdate', sort: 'timestamp' } },
         ],
         order: [[4, 'desc']],
         pageLength: 10,
