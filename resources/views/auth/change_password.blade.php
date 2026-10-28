@@ -31,9 +31,6 @@
     <p class="password-subtitle">Update your account password</p>
     @if($requiredChange)<p id="password-required-message" class="text-danger fs--1">Please update your password to continue using OPT. Exit will sign you out.</p>@endif
     <hr>
-    @if(session('password_updated'))
-        <div class="alert alert-success" role="status">{{ session('password_updated') }} <a href="{{ route('dashboard_admin') }}">Continue to OPT</a></div>
-    @endif
     <form method="POST" action="{{ route('password.update') }}" id="password-form" novalidate
           data-rules='@json($rules)' data-has-errors="{{ $errors->any() ? '1' : '0' }}">
         @csrf

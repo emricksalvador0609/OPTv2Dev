@@ -135,7 +135,7 @@ class PasswordChangeTest extends TestCase
         DB::table('OPTV2USER')->insert(['id' => 2, 'USERNAME' => 'OTHER', 'PASSWORD' => 'unchanged', 'ACTIVE' => '1']);
         $this->withSession(['staff' => 1])->post('/change-password', [
             'id' => 2, 'current_password' => 'old', 'password' => 'NewPassword123', 'password_confirmation' => 'NewPassword123',
-        ])->assertRedirect(route('password.edit'))->assertSessionHas('password_updated');
+        ])->assertRedirect(route('dashboard_admin'));
         $this->assertSame('NewPassword123', DB::table('OPTV2USER')->where('id', 1)->value('PASSWORD'));
         $this->assertSame('unchanged', DB::table('OPTV2USER')->where('id', 2)->value('PASSWORD'));
         $this->post('/change-password/exit')->assertRedirect(route('login_page'))->assertSessionMissing('staff');
@@ -159,7 +159,7 @@ class PasswordChangeTest extends TestCase
         ])->assertSessionHasErrors('current_password');
         $this->withSession(['staff' => 1])->post('/change-password', [
             'current_password' => ' old ', 'password' => 'NewPassword123', 'password_confirmation' => 'NewPassword123',
-        ])->assertSessionHas('password_updated');
+        ])->assertRedirect(route('dashboard_admin'));
         DB::table('OPTV2USER')->where('id', 1)->update(['ACTIVE' => '0']);
         $this->get('/change-password')->assertRedirect(route('login_page'));
     }

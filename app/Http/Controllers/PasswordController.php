@@ -44,7 +44,7 @@ class PasswordController extends Controller
         $request->session()->forget('password_policy_check');
         $request->session()->regenerate();
         $request->session()->regenerateToken();
-        return redirect()->route('password.edit')->with('password_updated', 'Your password has been updated.');
+        return redirect()->route('dashboard_admin');
     }
 
     public function exit(Request $request)
