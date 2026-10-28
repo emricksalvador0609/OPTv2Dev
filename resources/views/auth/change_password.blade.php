@@ -29,8 +29,14 @@
 @endif
     <h1 id="password-title">Change password for {{ $username }}</h1>
     <p class="password-subtitle">Update your account password</p>
-    @if($requiredChange)<p id="password-required-message" class="text-danger fs--1">Please update your password to continue using OPT. Exit will sign you out.</p>@endif
+    @if($requiredChange)<p id="password-required-message" class="text-danger fs--1">Please update your password to continue using OPT. Sign out ends your session.</p>@endif
     <hr>
+    @if(session('password_updated'))
+        <div class="alert alert-soft-success d-flex align-items-center justify-content-between" role="status">
+            <span>{{ session('password_updated') }}</span>
+            <a class="btn btn-sm btn-success" href="{{ route('dashboard_admin') }}">Continue to OPT</a>
+        </div>
+    @endif
     <form method="POST" action="{{ route('password.update') }}" id="password-form" novalidate
           data-rules='@json($rules)' data-has-errors="{{ $errors->any() ? '1' : '0' }}">
         @csrf
@@ -56,7 +62,9 @@
         </div>
         <div class="d-flex gap-2">
             <button type="submit" class="btn btn-primary btn-sm">Save password</button>
-            <button type="submit" form="password-exit" class="btn btn-phoenix-secondary btn-sm">Exit</button>
+            @if($requiredChange)
+                <button type="submit" form="password-exit" class="btn btn-phoenix-secondary btn-sm">Sign out</button>
+            @endif
         </div>
     </form>
     <form id="password-exit" method="POST" action="{{ route('password.exit') }}">@csrf</form>
