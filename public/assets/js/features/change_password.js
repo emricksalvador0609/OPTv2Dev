@@ -6,8 +6,17 @@
     const dialog = document.getElementById('required-password-dialog');
     if (dialog) {
         const notice = document.getElementById('password-notice');
-        dialog.addEventListener('cancel', event => event.preventDefault());
+        const backToNotice = () => {
+            dialog.close();
+            notice.showModal();
+        };
+        // Back and Esc leave the form but keep the requirement decision with the user.
+        dialog.addEventListener('cancel', event => {
+            event.preventDefault();
+            backToNotice();
+        });
         notice.addEventListener('cancel', event => event.preventDefault());
+        document.getElementById('password-back').addEventListener('click', backToNotice);
         document.getElementById('notice-change-password').addEventListener('click', () => {
             notice.close();
             dialog.showModal();

@@ -63,7 +63,10 @@
         <div class="d-flex gap-2">
             <button type="submit" class="btn btn-primary btn-sm">Save password</button>
             @if($requiredChange)
+                <button type="button" id="password-back" class="btn btn-phoenix-secondary btn-sm">Back</button>
                 <button type="submit" form="password-exit" class="btn btn-phoenix-secondary btn-sm">Sign out</button>
+            @else
+                <a class="btn btn-phoenix-secondary btn-sm" href="{{ route('dashboard_admin') }}">Back</a>
             @endif
         </div>
     </form>

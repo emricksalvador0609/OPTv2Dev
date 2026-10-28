@@ -41,6 +41,7 @@ class PasswordChangeTest extends TestCase
     {
         $this->withSession(['staff' => 1])->get('/')->assertRedirect(route('password.edit'));
         $this->get('/change-password')->assertSee('id="required-password-dialog"', false)
+            ->assertSee('id="password-back"', false)
             ->assertSee('assets/js/features/change_password.js', false)
             ->assertSee('assets/css/features/change_password.css', false)
             ->assertDontSee('<style>', false)
@@ -103,7 +104,7 @@ class PasswordChangeTest extends TestCase
         $this->get('/change-password')->assertRedirect(route('login_page'));
         $this->withSession(['staff' => 1])->get('/change-password')->assertOk()
             ->assertSeeInOrder(['Change password for TEST.USER', 'CURRENT PASSWORD', 'NEW PASSWORD',
-                'Use at least 8 characters.', 'Do not start with a number.', 'CONFIRM NEW PASSWORD', 'Save password', 'Sign out', 'Advisory']);
+                'Use at least 8 characters.', 'Do not start with a number.', 'CONFIRM NEW PASSWORD', 'Save password', 'Back', 'Sign out', 'Advisory']);
     }
 
     public function test_minimum_length_is_eight_and_guests_are_redirected_to_login()
@@ -138,6 +139,7 @@ class PasswordChangeTest extends TestCase
         ])->assertRedirect(route('password.edit'))->assertSessionHas('password_updated');
         $this->get('/change-password')->assertSee('alert-soft-success', false)
             ->assertSee('Continue to OPT', false)
+            ->assertSee('href="' . route('dashboard_admin') . '"', false)
             ->assertDontSee('Sign out', false);
         $this->assertSame('NewPassword123', DB::table('OPTV2USER')->where('id', 1)->value('PASSWORD'));
         $this->assertSame('unchanged', DB::table('OPTV2USER')->where('id', 2)->value('PASSWORD'));
