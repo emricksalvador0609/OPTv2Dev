@@ -102,9 +102,12 @@ class PasswordChangeTest extends TestCase
     public function test_form_is_private_and_renders_in_reference_order()
     {
         $this->get('/change-password')->assertRedirect(route('login_page'));
-        $this->withSession(['staff' => 1])->get('/change-password')->assertOk()
-            ->assertSeeInOrder(['Change password for TEST.USER', 'CURRENT PASSWORD', 'NEW PASSWORD',
-                'Use at least 8 characters.', 'Do not start with a number.', 'CONFIRM NEW PASSWORD', 'Save password', 'Back', 'Sign out', 'Advisory']);
+        $response = $this->withSession(['staff' => 1])->get('/change-password');
+        $response->assertOk()
+            ->assertSeeInOrder(['Sign out', 'Change password', 'Change password for TEST.USER', 'CURRENT PASSWORD', 'NEW PASSWORD',
+                'Use at least 8 characters.', 'Do not start with a number.', 'CONFIRM NEW PASSWORD', 'Save password', 'Back', 'Advisory']);
+        // Only the notice may sign the user out; the form itself must not.
+        $this->assertSame(1, substr_count($response->getContent(), 'form="password-exit"'));
     }
 
     public function test_minimum_length_is_eight_and_guests_are_redirected_to_login()
