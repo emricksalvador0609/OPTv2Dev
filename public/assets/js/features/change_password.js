@@ -102,9 +102,9 @@
             return;
         }
         // Match the dashboard: cover the page until the server answers.
-        // A modal dialog sits in the top layer, so close it or the overlay stays behind it.
+        // A modal dialog owns the top layer, so the overlay must live inside it to show above the form.
         if (loading) {
-            if (dialog && dialog.open) dialog.close();
+            if (dialog && dialog.open) dialog.appendChild(loading);
             loading.removeAttribute('hidden');
         }
         [save, back].forEach(button => {
