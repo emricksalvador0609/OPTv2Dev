@@ -102,7 +102,11 @@
             return;
         }
         // Match the dashboard: cover the page until the server answers.
-        if (loading) loading.removeAttribute('hidden');
+        // A modal dialog sits in the top layer, so close it or the overlay stays behind it.
+        if (loading) {
+            if (dialog && dialog.open) dialog.close();
+            loading.removeAttribute('hidden');
+        }
         [save, back].forEach(button => {
             if (button) button.disabled = true;
         });
