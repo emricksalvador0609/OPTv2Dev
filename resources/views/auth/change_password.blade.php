@@ -29,7 +29,7 @@
 @endif
     <h1 id="password-title">Change password for {{ $username }}</h1>
     <p class="password-subtitle">Update your account password</p>
-    @if($requiredChange)<p id="password-required-message" class="text-danger fs--1">Please update your password to continue using OPT. Sign out ends your session.</p>@endif
+    @if($requiredChange)<p id="password-required-message" class="text-danger fs--1">Please update your password to continue using OPT.</p>@endif
     <hr>
     <form method="POST" action="{{ route('password.update') }}" id="password-form" novalidate
           data-rules='@json($rules)' data-has-errors="{{ $errors->any() ? '1' : '0' }}">
