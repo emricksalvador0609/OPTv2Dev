@@ -34,6 +34,7 @@
 <link href="{{ asset('assets/css/user-rtl.min.css') }}" type="text/css" rel="stylesheet" id="user-style-rtl">
 <link href="{{ asset('assets/css/user.min.css') }}" type="text/css" rel="stylesheet" id="user-style-default">
 <link href="{{ asset('assets/css/user.min.css') }}" type="text/css" rel="stylesheet" id="user-style-default">
+@yield('pagestyle')
 
 <link href="{{ asset('vendors/fullcalendar/main.min.css') }}" rel="stylesheet">
 <link href="{{ asset('vendors/leaflet/leaflet.css') }}" rel="stylesheet">
@@ -791,6 +792,12 @@ table.dataTable thead th {
                </a>
              </div>
              @endif
+
+             <div class="nav-item-wrapper"><a class="nav-link @if( count($segment) > 0 &&  $segment[0] == 'audit-log')  {{ 'active' }} @endif label-1" href="{{ route('audit_log')}}" role="button" data-bs-toggle="" aria-expanded="false">
+                 <div class="d-flex align-items-center"><span class="nav-link-icon"><span data-feather="file-text"></span></span><span class="nav-link-text-wrapper"><span class="nav-link-text">Audit Log</span></span>
+                 </div>
+               </a>
+             </div>
  
      
  

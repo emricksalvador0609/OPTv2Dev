@@ -30,6 +30,9 @@ Route::get('/sessionList', [Mkacontrol::class,'sessionList'])->name('sessionList
 
 Route::get('/admin/users', [Mkacontrol::class,'admin_users'])->name('admin_users');
 
+Route::get('/audit-log', [\App\Http\Controllers\AuditLogController::class, 'index'])->name('audit_log');
+Route::get('/datatable_audit_log', [\App\Http\Controllers\AuditLogController::class, 'data'])->name('audit_log_data');
+
 Route::get('/testconnection', [Mkacontrol::class,'testconnection'])->name('testconnection');
 
 Route::get('/login', [Mkacontrol::class,'login_page'])->name('login_page');

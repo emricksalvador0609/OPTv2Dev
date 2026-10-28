@@ -1,0 +1,10 @@
+/* Audit Log page. Loaded only by resources/views/audit_log.blade.php. */
+.audit-log-table thead th {
+    white-space: nowrap;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+}
+.audit-log-table td {
+    vertical-align: middle;
+}

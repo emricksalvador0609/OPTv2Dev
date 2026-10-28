@@ -4,11 +4,19 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\ChangePasswordRequest;
 use App\Models\OPTv2User;
+use App\Services\PasswordAudit;
 use App\Support\PasswordPolicy;
 use Illuminate\Http\Request;
 
 class PasswordController extends Controller
 {
+    private PasswordAudit $audit;
+
+    public function __construct(PasswordAudit $audit)
+    {
+        $this->audit = $audit;
+    }
+
     private function user(Request $request)
     {
         return $request->session()->has('staff')
@@ -41,6 +49,7 @@ class PasswordController extends Controller
         if (!$updated) {
             return redirect()->route('password.edit')->withErrors(['current_password' => 'Your account changed. Please sign in again.']);
         }
+        $this->audit->changed($user, $request->session()->get('pernr') === null ? null : (string) $request->session()->get('pernr'));
         $request->session()->forget('password_policy_check');
         $request->session()->regenerate();
         $request->session()->regenerateToken();
