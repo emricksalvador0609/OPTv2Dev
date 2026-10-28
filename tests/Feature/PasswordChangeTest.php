@@ -71,6 +71,13 @@ class PasswordChangeTest extends TestCase
             }
             $table->timestamps();
         });
+        Schema::connection('mysql')->create('OPTV2LOGS', function (Blueprint $table) {
+            $table->increments('id');
+            foreach (['REFERENCE', 'REMARKS', 'USERID', 'DOCDATE', 'LOGTYPE', 'BASEDOCNUM'] as $column) {
+                $table->string($column)->nullable();
+            }
+            $table->timestamps();
+        });
         DB::table('OPTV2USER')->insert([
             'id' => 1, 'USERNAME' => 'TEST.USER', 'PASSWORD' => 'old', 'ACTIVE' => '1',
         ]);
@@ -104,6 +111,46 @@ class PasswordChangeTest extends TestCase
             return response('Allowed');
         });
         $this->withSession(['staff' => 1])->get('/password-warn-probe')->assertRedirect(route('password.edit'));
+    }
+
+    public function test_a_successful_change_writes_one_audit_row_without_the_password()
+    {
+        $this->withSession(['staff' => 1, 'pernr' => '1500123'])->post('/change-password', [
+            'current_password' => 'old', 'password' => 'NewPassword123', 'password_confirmation' => 'NewPassword123',
+        ])->assertRedirect(route('dashboard_admin'));
+
+        $this->assertSame(1, DB::table('OPTV2LOGS')->count());
+        $this->assertDatabaseHas('OPTV2LOGS', [
+            'REFERENCE' => 'TEST.USER',
+            'REMARKS' => 'password changed',
+            'USERID' => '1500123',
+            'LOGTYPE' => 'changepassword',
+        ]);
+        $this->assertStringNotContainsString('NewPassword123', (string) DB::table('OPTV2LOGS')->value('REMARKS'));
+        $this->assertNotNull(DB::table('OPTV2LOGS')->value('DOCDATE'));
+    }
+
+    public function test_rejected_attempts_write_no_audit_row()
+    {
+        $this->withSession(['staff' => 1])->post('/change-password', [
+            'current_password' => 'wrong', 'password' => 'NewPassword123', 'password_confirmation' => 'NewPassword123',
+        ])->assertSessionHasErrors('current_password');
+        $this->withSession(['staff' => 1])->post('/change-password', [
+            'current_password' => 'old', 'password' => 'short', 'password_confirmation' => 'short',
+        ])->assertSessionHasErrors('password');
+
+        $this->assertSame(0, DB::table('OPTV2LOGS')->count());
+    }
+
+    public function test_audit_failure_never_blocks_the_password_change()
+    {
+        Schema::connection('mysql')->drop('OPTV2LOGS');
+
+        $this->withSession(['staff' => 1, 'pernr' => '1500123'])->post('/change-password', [
+            'current_password' => 'old', 'password' => 'NewPassword123', 'password_confirmation' => 'NewPassword123',
+        ])->assertRedirect(route('dashboard_admin'));
+
+        $this->assertSame('NewPassword123', DB::table('OPTV2USER')->where('id', 1)->value('PASSWORD'));
     }
 
     public function test_policy_matches_the_reference_and_is_configurable()
