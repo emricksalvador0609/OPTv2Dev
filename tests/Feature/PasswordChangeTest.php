@@ -87,7 +87,7 @@ class PasswordChangeTest extends TestCase
             ->assertOk()->assertSee('Allowed')->assertSessionHas('staff');
 
         $html = view('partials.password_notice', ['passwordChangeNotice' => ['deadline' => null]])->render();
-        $this->assertStringContainsString('alert-warning', $html);
+        $this->assertStringContainsString('alert-soft-warning', $html);
         $this->assertStringContainsString('alert-dismissible', $html);
         $this->assertStringContainsString('data-bs-dismiss="alert"', $html);
         $this->assertStringContainsString(route('password.edit'), $html);

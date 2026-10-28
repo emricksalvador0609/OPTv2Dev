@@ -1,5 +1,5 @@
 @if(!empty($passwordChangeNotice))
-    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+    <div class="alert alert-soft-warning alert-dismissible fade show" role="alert">
         <strong>Password update needed.</strong>
         Your password does not meet the company password policy.
         @if(!empty($passwordChangeNotice['deadline']))
