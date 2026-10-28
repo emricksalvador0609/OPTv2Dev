@@ -2,7 +2,7 @@
 
 return [
     'recheck_seconds' => 300,
-    'minimum_length' => 12,
+    'minimum_length' => 8,
     // OPTV2USER.PASSWORD is varchar(254); retain the shared application's storage format.
     'maximum_bytes' => 254,
     'patterns' => [

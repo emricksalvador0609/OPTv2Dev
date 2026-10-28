@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\ChangePasswordRequest;
 use App\Models\OPTv2User;
 use App\Support\PasswordPolicy;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
 
 class PasswordController extends Controller
 {
@@ -28,33 +28,16 @@ class PasswordController extends Controller
         ]);
     }
 
-    public function update(Request $request, PasswordPolicy $policy)
+    public function update(ChangePasswordRequest $request)
     {
-        $user = $this->user($request);
+        $user = $request->account();
         if (!$user) {
             return redirect()->route('login_page');
         }
-        $validator = Validator::make($request->only('current_password', 'password', 'password_confirmation'), [
-            'current_password' => ['required', 'string'],
-            'password' => ['required', 'string', 'confirmed', 'different:current_password', function ($attribute, $value, $fail) use ($policy) {
-                foreach ($policy->errors($value) as $error) {
-                    $fail($error);
-                }
-            }],
-            'password_confirmation' => ['required', 'string'],
-        ]);
-        $validator->after(function ($validator) use ($request, $user) {
-            if (!is_string($request->input('current_password')) ||
-                !hash_equals((string) $user->PASSWORD, $request->input('current_password'))) {
-                $validator->errors()->add('current_password', 'The current password is incorrect.');
-            }
-        });
-        if ($validator->fails()) {
-            return redirect()->route('password.edit')->withErrors($validator);
-        }
+        $validated = $request->validated();
         // Keep compatibility with the existing shared OPT login. Never accept an account ID from the form.
         $updated = OPTv2User::where('id', $user->id)->where('PASSWORD', $user->PASSWORD)
-            ->update(['PASSWORD' => $request->input('password')]);
+            ->update(['PASSWORD' => $validated['password']]);
         if (!$updated) {
             return redirect()->route('password.edit')->withErrors(['current_password' => 'Your account changed. Please sign in again.']);
         }

@@ -41,7 +41,11 @@ class PasswordChangeTest extends TestCase
     {
         $this->withSession(['staff' => 1])->get('/')->assertRedirect(route('password.edit'));
         $this->get('/change-password')->assertSee('id="required-password-dialog"', false)
-            ->assertSee('dialog.showModal()', false);
+            ->assertSee('assets/js/features/change_password.js', false)
+            ->assertSee('assets/css/features/change_password.css', false)
+            ->assertDontSee('<style>', false)
+            ->assertDontSee('<script>', false);
+        $this->assertStringContainsString('dialog.showModal()', file_get_contents(public_path('assets/js/features/change_password.js')));
         $this->post('/change-password', [
             'current_password' => 'old', 'password' => 'NewPassword123', 'password_confirmation' => 'NewPassword123',
         ])->assertSessionMissing('password_policy_check');
@@ -99,7 +103,18 @@ class PasswordChangeTest extends TestCase
         $this->get('/change-password')->assertRedirect(route('login_page'));
         $this->withSession(['staff' => 1])->get('/change-password')->assertOk()
             ->assertSeeInOrder(['Change password for TEST.USER', 'CURRENT PASSWORD', 'NEW PASSWORD',
-                'Use at least 12 characters.', 'Do not start with a number.', 'CONFIRM NEW PASSWORD', 'Save password', 'Exit', 'Advisory']);
+                'Use at least 8 characters.', 'Do not start with a number.', 'CONFIRM NEW PASSWORD', 'Save password', 'Exit', 'Advisory']);
+    }
+
+    public function test_minimum_length_is_eight_and_guests_are_redirected_to_login()
+    {
+        $policy = app(PasswordPolicy::class);
+        $this->assertSame([], $policy->errors('Abcdefg1'));
+        $this->assertNotEmpty($policy->errors('Abcdef1'));
+        $this->post('/change-password', [
+            'current_password' => 'old', 'password' => 'Abcdefg1', 'password_confirmation' => 'Abcdefg1',
+        ])->assertRedirect(route('login_page'));
+        $this->assertSame('old', DB::table('OPTV2USER')->value('PASSWORD'));
     }
 
     public function test_invalid_input_never_updates_or_flashes_passwords()
@@ -107,6 +122,10 @@ class PasswordChangeTest extends TestCase
         $this->withSession(['staff' => 1])->post('/change-password', [
             'current_password' => 'wrong', 'password' => 'short', 'password_confirmation' => 'other',
         ])->assertSessionHasErrors(['current_password', 'password']);
+        $this->get('/change-password')->assertOk()
+            ->assertSee('is-invalid', false)
+            ->assertSee('invalid-feedback', false)
+            ->assertSee('The current password is incorrect.', false);
         $this->assertSame('old', DB::table('OPTV2USER')->value('PASSWORD'));
         $this->assertEmpty(session()->getOldInput());
     }

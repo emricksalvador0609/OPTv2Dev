@@ -6,7 +6,7 @@ class PasswordPolicy
 {
     public function rules(): array
     {
-        $minimum = config('password_policy.minimum_length', 12);
+        $minimum = config('password_policy.minimum_length', 8);
         return array_merge([
             ['minimum' => $minimum, 'message' => "Use at least {$minimum} characters."],
         ], config('password_policy.patterns', []));
