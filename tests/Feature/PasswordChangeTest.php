@@ -90,6 +90,7 @@ class PasswordChangeTest extends TestCase
         $this->assertStringContainsString('alert-soft-warning', $html);
         $this->assertStringContainsString('alert-dismissible', $html);
         $this->assertStringContainsString('data-bs-dismiss="alert"', $html);
+        $this->assertStringContainsString('btn-warning', $html);
         $this->assertStringContainsString(route('password.edit'), $html);
     }
 

@@ -7,7 +7,7 @@
         @else
             Please update it when convenient.
         @endif
-        <a href="{{ route('password.edit') }}" class="alert-link">Change password</a>
+        <a href="{{ route('password.edit') }}" class="btn btn-sm btn-warning ms-2">Change password</a>
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
 @endif
