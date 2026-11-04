@@ -1698,13 +1698,18 @@ function capitalizeDecent($string) {
 
 
             $cur = getPreviousYear(0);
+            $schoolYears = [$cur - 1, $cur, $cur + 1];
 
             // $q = ProjectionPeriodList('0',trim(session('division')))->get();
 
             $rank = trim(session('rank'));
 
             $query = OPTv2ProjectionPeriod::orderBy('id','DESC')
-                                    ->where('YEAR','LIKE','%'.$cur.'-%');
+                                    ->where(function ($q) use ($schoolYears) {
+                                          foreach ($schoolYears as $year) {
+                                                $q->orWhere('YEAR','LIKE','%'.$year.'-%');
+                                          }
+                                    });
               
 
             $salesteamrank = [
