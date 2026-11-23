@@ -63,6 +63,7 @@ use App\Models\TblBudget;
 use App\Models\NewSales;
 use App\Models\OPTv2Justification;
 use App\Services\ProjectionOmsOrderedService;
+use App\Services\ProjectionTitleAvailability;
 use App\Services\StockAllocationSummaryService;
 use Auth;
 use DB;
@@ -9170,6 +9171,9 @@ $queryprojectiond =  OPTv2Projectiond::from('OPTV2PROJECTIOND as t1')
         $_customercode = $request->query('customercode') ;
         $tempstatus = $request->query('tempstatus') ;
         $showall = $request->query('showall') ;
+        // Only the create-projection title search asks for untagged titles.
+        // Other screens keep the old behaviour.
+        $includeUntagged = $request->query('include_untagged') === '1';
         $customercode = isset($_customercode) ? $_customercode : '';
         $pernr = session('pernr');
              
@@ -9333,10 +9337,18 @@ $queryprojectiond =  OPTv2Projectiond::from('OPTV2PROJECTIOND as t1')
                     $isbn = $mat->EAN11;
                     $description = strtoupper($mat->MAKTX);
 
-                    // Filter only when NOT showall
-                    if (empty($showall) && !in_array($isbn, $existingsapcodeactiveitems)) {
+                    $isTagged = in_array($isbn, $existingsapcodeactiveitems);
+
+                    if (! $includeUntagged && empty($showall) && ! $isTagged) {
                         continue;
                     }
+
+                    // Untagged titles are returned too, so the user sees that
+                    // the ISBN exists. The UI refuses to add them.
+                    $availability = ProjectionTitleAvailability::flags(
+                        $isTagged,
+                        $mat->KBETRCE
+                    );
 
                     $isbnlist[] = $isbn;
 
@@ -9372,7 +9384,7 @@ $queryprojectiond =  OPTv2Projectiond::from('OPTV2PROJECTIOND as t1')
                             "total1" => 0,
                             "total2" => 0,
                             "total3" => 0,
-                        ];
+                        ] + $availability;
                     }
                 }
 
