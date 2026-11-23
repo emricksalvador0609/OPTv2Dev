@@ -2115,7 +2115,8 @@ $(document).ready(function(){
                     dataType: 'json',
                     data: {
                         search: request.term,
-                        customercode: customercodesearchtitle
+                        customercode: customercodesearchtitle,
+                        include_untagged: 1
                     },
                     beforeSend: function() {
                         response([{ num: 0, description: "Searching..." }]);
@@ -2137,6 +2138,15 @@ $(document).ready(function(){
                 if (ui.item.num == 0) {
                     $input.addClass("is-invalid");
                     return false;
+                }
+
+                if (ui.item.selectable === false) {
+                    sweetalert(" ", ui.item.warning || "This ISBN is not yet tagged", icon = 'warning', timer = '5000', btn = false);
+                    return false;
+                }
+
+                if (ui.item.priced === false) {
+                    sweetalert(" ", "This ISBN has no price yet", icon = 'warning', timer = '4000', btn = false);
                 }
 
                 // $('.addnewtitleisbndisp').val(ui.item.isbn);
@@ -2223,6 +2233,12 @@ $(document).ready(function(){
                 return $("<li>").append('<div style="padding:5px;color:#999;">' + item.description + '</div>').appendTo(ul);
             }
 
+            var warning = '';
+            if (item.warning) {
+                var warningColor = item.selectable === false ? '#b02a37' : '#997404';
+                warning = '<div style="padding-top:4px;color:' + warningColor + ';">' + item.warning + '</div>';
+            }
+
             var html = '<div>' +
                 '<strong>Title:</strong> ' + item.description + 
                 '<br>' +
@@ -2231,8 +2247,7 @@ $(document).ready(function(){
                 '<br>' +
                 '<strong>ISBN:</strong> ' + item.isbn +  '&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp <strong>Copyright:</strong> ' + item.copyright 
               
-                
-                + '</div>';
+                + '</div>' + warning;
 
             return $("<li>").append(html).appendTo(ul);
         };
