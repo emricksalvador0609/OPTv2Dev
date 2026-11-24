@@ -272,7 +272,7 @@ class CustomerLinkAccounts
      */
     private static function lock()
     {
-        $path = storage_path('framework/' . self::LOCK_FILE);
+        $path = storage_path('framework/cache/' . self::LOCK_FILE);
         $handle = @fopen($path, 'c');
 
         if ($handle === false) {
