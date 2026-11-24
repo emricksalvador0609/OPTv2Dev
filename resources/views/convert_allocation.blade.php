@@ -1015,6 +1015,7 @@ $(document).ready(function(){
                 { "data": "qty" },
                 { "data": "branchwhouse" },
                 { "data": "status" },
+                { "data": "history" },
                 { "data": "datecreate" },
                 { "data": "action" },
         ];
