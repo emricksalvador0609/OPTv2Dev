@@ -42,6 +42,7 @@ use App\Models\OPTv2AllocReqh;
 use App\Models\OPTv2AllocReqd;
 use App\Models\OPTv2ConvertAllocd;
 use App\Models\OPTv2User;
+use App\Services\CustomerLinkUserOptions;
 use App\Models\OPTv2UserExp;
 use App\Models\OPTv2UserAccess;
 use App\Models\ZsdOmsh;
@@ -3711,23 +3712,6 @@ public function datatable_customer_link_accounts(Request $request) {
             $customerTopMap[trim($qcl->CUSTOMER)]['TOPERNR'] = trim($qcl->TOPERNR ?? '');
             $customerTopMap[trim($qcl->CUSTOMER)]['TOPERNRNAME'] = trim($qcl->TOPERNRNAME ?? '');
         }
-        
-        $filterPernr = filter_user_list('0')->get()
-                                    ->map(fn($u) => [
-                                        'PERNR' => $u->PERNR,
-                                        'FULLNAME' => $u->FULLNAME,
-                                    ])
-                                    ->values()
-                                    ->toArray();
-        $pernrOptions = '';
-
-        foreach ($filterPernr as $u) {
-            $pernr = trim($u['PERNR']);
-            $name  = htmlspecialchars($u['FULLNAME'], ENT_QUOTES, 'UTF-8');
-        
-            // pwede mo i-format kung ano gusto mo ipakita
-            $pernrOptions .= ' <a href="#" class="dropdown-item p-1 text-primary btn-linkto" data-linktopernr="'.$pernr.'" data-linktopernrname="'.$name.'"> '.$pernr.' - '.$name.' </a>';
-        }
 
         foreach ($response as &$res) {
             $code = trim($res['customercode'] ?? '');
@@ -3757,9 +3741,9 @@ public function datatable_customer_link_accounts(Request $request) {
                             <input class="linkfrompernr un-cl d-none"  readonly="readonly" value="'.$frompernr.'" > 
                             <input class="linktoexistpernr un-cl d-none"  readonly="readonly" value="'.$topernr.'" > 
                             <input class="linktocustomercode un-cl d-none"  readonly="readonly" value="'.$customercode.'" > 
-                            <input class="linktocustomername un-cl d-none"  readonly="readonly" value="'.$customername.'" > 
+                            <input class="linktocustomername un-cl d-none"  readonly="readonly" value="'.$customername.'" >
 
-                            '.$pernrOptions.'
+                            <div class="linkto-user-options"></div>
                         ';
                                         
             
@@ -3782,6 +3766,14 @@ public function datatable_customer_link_accounts(Request $request) {
 
     return response()->json($response);
 
+
+}
+
+public function datatable_customer_link_user_options() {
+
+    return response()->json([
+        'options' => CustomerLinkUserOptions::forCurrentUser(),
+    ]);
 
 }
 

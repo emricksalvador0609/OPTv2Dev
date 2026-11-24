@@ -548,4 +548,6 @@ $(document).ready(function(){
 
 </script>
 
+<script src="{{ asset_v('assets/js/features/customer_link_accounts.js') }}"></script>
+
 @endsection
