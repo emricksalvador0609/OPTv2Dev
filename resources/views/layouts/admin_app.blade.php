@@ -2494,7 +2494,8 @@ function dTable(
     LeftfixedColumns = 0,
     RightfixedColumns = 0,
     sortCol = 0,
-    disablesortendcol = 0
+    disablesortendcol = 0,
+    serverSide = false
 ) {
 
 
@@ -2527,6 +2528,7 @@ function dTable(
         },
         deferRender: true,
         processing: true,
+        serverSide: serverSide,
         searchDelay: 1000,
         scrollY: width,
         scrollX: true,
@@ -2537,7 +2539,7 @@ function dTable(
         paging: _paging,
         ajax: {
             url: url,
-            dataSrc: "",
+            dataSrc: serverSide ? "data" : "",
         },
         language: {
             emptyTable: $emptyTableText,

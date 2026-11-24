@@ -70,10 +70,13 @@ class CustomerLinkUserOptionsTest extends TestCase
 
         $this->assertStringContainsString('linkto-user-options', $method);
 
-        $this->assertSame(
-            1,
-            substr_count($method, '$customerTopMap = [];'),
-            'The link map must be built once per request, not reset after it is filled.'
+        $this->assertStringContainsString(
+            'CustomerLinkAccounts::rows',
+            $method,
+            'The endpoint must read the cached snapshot instead of running the heavy query per request.'
         );
+
+        $this->assertStringContainsString('recordsTotal', $method);
+        $this->assertStringContainsString('recordsFiltered', $method);
     }
 }

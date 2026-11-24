@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use Illuminate\Support\Facades\Cache;
+
 /**
  * Builds the "Link To" dropdown for the customer link accounts screen.
  *
@@ -12,6 +14,8 @@ namespace App\Services;
  */
 class CustomerLinkUserOptions
 {
+    public const TTL = 300;
+
     /**
      * @param  iterable<object|array>  $users  rows with PERNR and FULLNAME
      */
@@ -35,7 +39,17 @@ class CustomerLinkUserOptions
 
     public static function forCurrentUser(): string
     {
-        return self::html(filter_user_list('0')->get());
+        $identity = implode('|', [
+            trim((string) session('pernr')),
+            trim((string) session('rank')),
+            trim((string) session('division')),
+        ]);
+
+        return Cache::remember(
+            'customerlink:useroptions:' . sha1($identity),
+            self::TTL,
+            fn () => self::html(filter_user_list('0')->get())
+        );
     }
 
     /**
