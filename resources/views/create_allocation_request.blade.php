@@ -430,7 +430,7 @@ $(document).ready(function(){
                 { "data": "docdate" },
         ];
 
-        dTable(customerLinkAccountsListable, customerLinkAccountsListableURL, customerLinkAccountsListableColumns, 300,"",true,'',true,0,0);
+        dTable(customerLinkAccountsListable, customerLinkAccountsListableURL, customerLinkAccountsListableColumns, 300,"",true,'',true,0,0,1,0,true);
 
 
  

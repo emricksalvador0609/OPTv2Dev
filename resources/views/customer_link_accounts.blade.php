@@ -275,7 +275,7 @@ $(document).ready(function(){
                 { "data": "action" },
         ];
 
-        dTable(customerLinkAccountsListable, customerLinkAccountsListableURL, customerLinkAccountsListableColumns, 270,"",true,'',true,0,0);
+        dTable(customerLinkAccountsListable, customerLinkAccountsListableURL, customerLinkAccountsListableColumns, 270,"",true,'',true,0,0,1,0,true);
 
 
 
@@ -547,5 +547,7 @@ $(document).ready(function(){
 
 
 </script>
+
+<script src="{{ asset_v('assets/js/features/customer_link_accounts.js') }}"></script>
 
 @endsection

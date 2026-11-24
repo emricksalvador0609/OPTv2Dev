@@ -42,6 +42,8 @@ use App\Models\OPTv2AllocReqh;
 use App\Models\OPTv2AllocReqd;
 use App\Models\OPTv2ConvertAllocd;
 use App\Models\OPTv2User;
+use App\Services\CustomerLinkAccounts;
+use App\Services\CustomerLinkUserOptions;
 use App\Models\OPTv2UserExp;
 use App\Models\OPTv2UserAccess;
 use App\Models\ZsdOmsh;
@@ -3586,160 +3588,57 @@ public function datatable_customer_saleshistory(Request $request) {
 
 public function datatable_customer_link_accounts(Request $request) {
 
-    $pernr = session('pernr');
-      
-    // $qcustomerlink =  OPTv2CustomerLink::where('USERCREATE',$pernr)
-    //                                     ->orderBy('id','DESC')
-    //                                     ->get();
+    $aes = array_values(array_unique(array_filter(
+        array_map(fn($p) => trim((string) $p), userteam()),
+        fn($p) => $p !== ''
+    )));
 
-    $qcustomerlink = CrmMotherLookup::whereIn('AE',userteam())
-                ->leftjoin('prd.CRMMOTHERACT as t2','prd.CRMMOTHERLOOKUP.ACCTNO','=','t2.MOTHERACCT')
-                ->orderByRaw('CUSTNAME','ASC')
-                ->selectRaw('
-                                MAX(prd.CRMMOTHERLOOKUP.NAME) as CUSTNAME, 
-                                MAX(RTRIM(CUSTNO)) as CUSTNO, 
-                                MAX(RTRIM(MOTHERACCT)) as MOTHERACCT, 
-                                MAX(AE) as AE, 
-                                MAX(RTRIM(DEPARTMENT)) as DEPARTMENT
-                            
-                                '
-                                )
-                ->groupBy('t2.CUSTNO')
-                ->get();
-    $num = 0;
-    
-    if($qcustomerlink->isEmpty()) {
-        $response = [
-            "num" => 0
-        ];
+    $snapshot = CustomerLinkAccounts::rows($aes);
 
-    } else {
-        foreach($qcustomerlink as $c) {
-                $num++;
-            
-                $customercode = $c->CUSTNO;
-           
-                $department = $c->DEPARTMENT;
-                // $docdate = $c->DOCDATE;
-                $frompernr = $c->AE;
-                $topernr = $c->TOPERNR;
+    if ($snapshot['stale']) {
+        // Rebuild after the response is sent, so the request itself stays fast.
+        app()->terminating(function () use ($aes) {
+            CustomerLinkAccounts::rebuild($aes);
+        });
+    }
 
-                $customerlist[] = $customercode;
-                $fromaelist[] = $frompernr;
-                
-                $frompernrDisplay =  $frompernr;
-                // $topernrDisplay = userDetails($topernr)->FULLNAME . " &nbsp" . $topernr;
+    $params = CustomerLinkAccounts::requestParams($request);
+    $page = CustomerLinkAccounts::page($snapshot['rows'], $params);
 
-                $dept = '';
+    $topMap = CustomerLinkAccounts::linkMap(array_map(fn($r) => $r['custno'] ?? '', $page['rows']));
+    $aeNames = CustomerLinkAccounts::aeNames(array_map(fn($r) => $r['ae'] ?? '', $page['rows']));
 
-                if (!is_null($department) && $department !== '') {
-                    $dept = ' - ' . $department;
-                }
+    $num = (int) $params['start'];
+    $data = [];
 
-                $customername = $c->CUSTNAME . $dept;
+    foreach ($page['rows'] as $row) {
 
-                $customernameDisplay = '<span class="text-start line-clamp-1" title="'.$customername.'">'.$customercode.'&nbsp ' .$customername . '</span>' ;
+        $num++;
 
-                $response[] = array(
-                    "num" => $num,
-                    "customercode" => $customercode,
-                    "customername" => $customernameDisplay,
-                    "customernametext" => $customername,
-                    "frompernr" => $frompernr,
-                    "frompernrdisplay" => '-',
-                    "topernr" => '-',
-                    "topernrdisplay" => '-',
-                    "docdate" => '-',
-                    "action" => '-',
-                );
+        $customercode = $row['custno'];
+        $department = $row['department'] ?? '';
+        $frompernr = $row['ae'] ?? '';
 
+        $topernr = $topMap[$customercode]['TOPERNR'] ?? '';
+        $topernrname = $topMap[$customercode]['TOPERNRNAME'] ?? '-';
+
+        $topernrdisplay = $topernr . ' &nbsp' . $topernrname;
+
+        $dept = '';
+
+        if ($department !== '') {
+            $dept = ' - ' . $department;
         }
 
-        
+        $customername = ($row['custname'] ?? '') . $dept;
 
-// kunin mo lng from pernr name
+        $customernameDisplay = '<span class="text-start line-clamp-1" title="'.$customername.'">'.$customercode.'&nbsp ' .$customername . '</span>' ;
 
-        $qfromae = OPTv2User::whereIn('PERNR',array_unique($fromaelist))
-                                ->get();
+        $fullname = $aeNames[$frompernr] ?? '-';
 
-        $qfromaeName = [];
-        foreach($qfromae as $qfae) {
+        $frompernrdisplay = $frompernr . ' &nbsp;' . $fullname;
 
-            $qfromaeName[$qfae->PERNR]['FULLNAME'] = $qfae->FULLNAME;
-
-        }
-
-        foreach ($response as &$res) {
-
-            $frompernr = isset($res['frompernr']) ? trim($res['frompernr']) : '-';
-        
-            $fullname = $qfromaeName[$frompernr]['FULLNAME'] ?? '-';
-        
-            $res['frompernrdisplay'] = $frompernr . ' &nbsp;' . $fullname;
-        }
-
-        unset($res);
-//-----------------
-
-// kunin mo yung mga customercodes na may naka link
-
-        // $customerCodes = array_values(array_unique(array_map(
-        //     fn($r) => trim($r['customercode'] ?? ''),
-        //     $response
-        // )));
-        
-      
-
-        // foreach (array_chunk($customerCodes, 2000) as $chunk) { // 2000 safe
-        //     OPTv2CustomerLink::whereIn('CUSTOMER', $chunk)
-        //         ->where('STATUS', '1')  // only what you need
-        //         ->get()
-        //         ->each(function ($row) use (&$customerTopMap) {
-        //             $customerTopMap[trim($row->CUSTOMER)]['TOPERNR'] = trim($row->TOPERNR ?? '');
-        //             $customerTopMap[trim($row->CUSTOMER)]['TOPERNRNAME'] = trim($row->TOPERNRNAME ?? '');
-        //         });
-        // }
-
-        $customerTopMap = []; 
-
-        $qcustomerlink = OPTv2CustomerLink::whereIn('FROMPERNR', array_unique($fromaelist))
-                ->where('STATUS', '1')  
-                ->get();
-
-        foreach ($qcustomerlink as $qcl) {
-
-            $customerTopMap[trim($qcl->CUSTOMER)]['TOPERNR'] = trim($qcl->TOPERNR ?? '');
-            $customerTopMap[trim($qcl->CUSTOMER)]['TOPERNRNAME'] = trim($qcl->TOPERNRNAME ?? '');
-        }
-        
-        $filterPernr = filter_user_list('0')->get()
-                                    ->map(fn($u) => [
-                                        'PERNR' => $u->PERNR,
-                                        'FULLNAME' => $u->FULLNAME,
-                                    ])
-                                    ->values()
-                                    ->toArray();
-        $pernrOptions = '';
-
-        foreach ($filterPernr as $u) {
-            $pernr = trim($u['PERNR']);
-            $name  = htmlspecialchars($u['FULLNAME'], ENT_QUOTES, 'UTF-8');
-        
-            // pwede mo i-format kung ano gusto mo ipakita
-            $pernrOptions .= ' <a href="#" class="dropdown-item p-1 text-primary btn-linkto" data-linktopernr="'.$pernr.'" data-linktopernrname="'.$name.'"> '.$pernr.' - '.$name.' </a>';
-        }
-
-        foreach ($response as &$res) {
-            $code = trim($res['customercode'] ?? '');
-            $topernrname = $customerTopMap[$code]['TOPERNRNAME'] ?? '-';
-            $topernr = $customerTopMap[$code]['TOPERNR'] ?? '';
-            $customercode = $res['customercode'];
-            $customername = $res['customernametext'];
-            $frompernr =  trim($res['frompernr']);
-            $res['topernr'] = $topernr ;
-            $res['topernrdisplay'] = $topernr . ' &nbsp' . $topernrname;
-
-            $action = '<div class="font-sans-serif btn-reveal-trigger position-static">
+        $action = '<div class="font-sans-serif btn-reveal-trigger position-static">
             <button class="btn btn-sm border p-1 dropdown-toggle dropdown-caret-none transition-none btn-reveal fs--2"
                 type="button"
                 data-bs-toggle="dropdown"
@@ -3752,36 +3651,46 @@ public function datatable_customer_link_accounts(Request $request) {
                         <a href="#" class="dropdown-item text-danger p-1 btn-unlink" data-customer="'.$customercode.'" data-customername="'.$customername.'">
                                         Unlink
                         </a>
-                        <div class="dropdown-divider"></div>    
+                        <div class="dropdown-divider"></div>
                         <span class="fw-bold px-1"> Link To</span>
-                            <input class="linkfrompernr un-cl d-none"  readonly="readonly" value="'.$frompernr.'" > 
-                            <input class="linktoexistpernr un-cl d-none"  readonly="readonly" value="'.$topernr.'" > 
-                            <input class="linktocustomercode un-cl d-none"  readonly="readonly" value="'.$customercode.'" > 
-                            <input class="linktocustomername un-cl d-none"  readonly="readonly" value="'.$customername.'" > 
+                            <input class="linkfrompernr un-cl d-none"  readonly="readonly" value="'.$frompernr.'" >
+                            <input class="linktoexistpernr un-cl d-none"  readonly="readonly" value="'.$topernr.'" >
+                            <input class="linktocustomercode un-cl d-none"  readonly="readonly" value="'.$customercode.'" >
+                            <input class="linktocustomername un-cl d-none"  readonly="readonly" value="'.$customername.'" >
 
-                            '.$pernrOptions.'
+                            <div class="linkto-user-options"></div>
                         ';
-                                        
-            
-        
-    
-            $action .= "
+
+        $action .= "
                                 </div>
                         </div>";
-                        $res['action'] = $action;
-            
-        }
-        unset($res);
-//-------------------
 
-
+        $data[] = [
+            "num" => $num,
+            "customername" => $customernameDisplay,
+            "customernametext" => $customername,
+            "frompernr" => $frompernr,
+            "frompernrdisplay" => $frompernrdisplay,
+            "topernr" => $topernr,
+            "topernrdisplay" => $topernrdisplay,
+            "docdate" => '-',
+            "action" => $action,
+        ];
     }
 
+    return response()->json([
+        'draw' => (int) $params['draw'],
+        'recordsTotal' => $page['total'],
+        'recordsFiltered' => $page['filtered'],
+        'data' => $data,
+    ]);
+}
 
+public function datatable_customer_link_user_options() {
 
-
-    return response()->json($response);
-
+    return response()->json([
+        'options' => CustomerLinkUserOptions::forCurrentUser(),
+    ]);
 
 }
 

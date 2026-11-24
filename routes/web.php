@@ -166,6 +166,8 @@ Route::get('/datatable_view_projection_progress_customer_isbn_list', [Mkacontrol
 
 Route::get('/datatable_customer_link_accounts', [Mkacontrol::class,'datatable_customer_link_accounts']);
 
+Route::get('/datatable_customer_link_user_options', [Mkacontrol::class,'datatable_customer_link_user_options'])->middleware('opttoken.login');
+
 Route::get('/datatable_create_allocation_request_balance_table', [Mkacontrol::class,'datatable_create_allocation_request_balance_table']);
 
 Route::get('/datatable_update_push_list_isbn_table', [Mkacontrol::class,'datatable_update_push_list_isbn_table']);
