@@ -15,8 +15,8 @@
         <div class="col-12">
             <div class="card border border-300 shadow-none">
                 <div class="card-header bg-soft border-bottom border-300">
-                    <h4 class="mb-0">Password changes</h4>
-                    <p class="mb-0 text-600 fs--1">Every completed password change, newest first.</p>
+                    <h4 class="mb-0">Security events</h4>
+                    <p class="mb-0 text-600 fs--1">Password changes and sign-in activity, newest first.</p>
                 </div>
                 <div class="card-body p-2">
                     <div class="table-responsive scrollbar">
@@ -26,8 +26,10 @@
                                     <th width="1%" class="text-600">#</th>
                                     <th>Username</th>
                                     <th>Employee no.</th>
-                                    <th>Action</th>
+                                    <th>Event</th>
+                                    <th>Details</th>
                                     <th>Date and time</th>
+                                    <th>Action</th>
                                 </tr>
                             </thead>
                         </table>

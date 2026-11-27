@@ -47,6 +47,8 @@ class OPTTokenLogin
                 $request->session()->put('division', $user->DIVISION);
 
                 $request->session()->save(); // para sure bago mag-next
+
+                app(\App\Services\SignInAudit::class)->succeeded($user, (string) $request->ip());
             }
         }
 

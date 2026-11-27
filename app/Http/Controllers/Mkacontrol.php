@@ -1357,7 +1357,7 @@ return $s->isbn;
 
     public function logoff_admin (Request $request) {
         
-    
+        app(\App\Services\SignInAudit::class)->loggedOut($request->session()->get('user_staff'), $request->session()->get('pernr'));
 
         Session::forget('staff');        
         Session::forget('user_staff');
@@ -1391,8 +1391,19 @@ return $s->isbn;
 
     public function login_admin (Request $request) {
         
-        $username = $request->input("username");    
+        $username = (string) $request->input("username");    
         $pass = $request->input("password");
+
+        // App-side lockout, keyed on client address + username (see App\Services\LoginGuard).
+        $loginGuard = app(\App\Services\LoginGuard::class);
+        $clientIp = (string) $request->ip();
+
+        if ($loginGuard->isLocked($username, $clientIp)) {
+            app(\App\Services\SignInAudit::class)->refusedWhileLocked($username, $clientIp);
+            $request->session()->flash('errormessage', "Too many failed sign-in attempts. Please try again in " . \App\Services\LoginGuard::LOCK_MINUTES . " minutes.");
+            $request->session()->flash('classDiv', "is-invalid");
+            return back();
+        }
         
         $user = OPTv2User::where([
             "USERNAME" => $username,
@@ -1423,6 +1434,9 @@ return $s->isbn;
                     $request->session()->put('division', $division);
                     $request->session()->forget('password_policy_check');
                     $request->session()->regenerate();
+
+                    app(\App\Services\SignInAudit::class)->succeeded($user, $clientIp);
+
                     return redirect()->route(app(\App\Support\PasswordPolicy::class)->errors((string) $user->PASSWORD)
                         ? 'password.edit' : 'dashboard_admin');
         
@@ -1436,7 +1450,9 @@ return $s->isbn;
                 }
             
             } else {
-    
+
+                $loginGuard->recordFailure($username, $clientIp);
+
                 $request->session()->flash('errormessage', "Wrong username or password.");
                 $request->session()->flash('classDiv', "is-invalid");
                 return back();

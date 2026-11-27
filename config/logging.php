@@ -54,6 +54,14 @@ return [
             'days' => 14,
         ],
 
+        // Sign-in failures and lockouts. Read by fail2ban; do not rename the path or lines.
+        'auth' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/auth.log'),
+            'level' => 'info',
+            'days' => 30,
+        ],
+
         'slack' => [
             'driver' => 'slack',
             'url' => env('LOG_SLACK_WEBHOOK_URL'),
