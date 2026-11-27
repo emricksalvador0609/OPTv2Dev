@@ -311,6 +311,25 @@ class LoginLockoutTest extends TestCase
         $this->signIn('10.0.0.7', self::PASSWORD)->assertSessionHas('staff', 2);
     }
 
+    public function test_unlocked_rows_stop_offering_the_unlock_action()
+    {
+        for ($attempt = 0; $attempt < 3; $attempt++) {
+            $this->signIn('10.0.0.5', 'wrong-password');
+        }
+
+        $before = collect($this->admin()->getJson('/datatable_audit_log')->json())
+            ->firstWhere('event', 'Sign-in Locked');
+        $this->assertTrue($before['unlock']);
+
+        $this->admin()->post('/audit-log/unlock', [
+            'username' => self::USERNAME, 'ip' => '10.0.0.5',
+        ])->assertRedirect();
+
+        $after = collect($this->admin()->getJson('/datatable_audit_log')->json())
+            ->firstWhere('event', 'Sign-in Locked');
+        $this->assertFalse($after['unlock']);
+    }
+
     public function test_the_file_line_is_written_once_per_address_per_minute()
     {
         $path = storage_path('logs/auth-test-cap.log');
