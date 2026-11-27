@@ -226,19 +226,24 @@ class LoginLockoutTest extends TestCase
     }
 
     public function test_failed_attempts_write_a_fail2ban_readable_line()
-    {        $path = storage_path('logs/auth-test.log');
-        @unlink($path);
-        config(['logging.channels.auth' => ['driver' => 'single', 'path' => $path, 'level' => 'debug']]);
+    {
+        $dir = storage_path('logs');
+        config(['login_throttle.log_dir' => $dir]);
+        array_map('unlink', glob($dir . '/auth-*.log') ?: []);
 
         $this->signIn('10.0.0.5', 'wrong-password')->assertSessionHas('errormessage');
 
-        $this->assertFileExists($path);
+        $files = glob($dir . '/auth-*.log') ?: [];
+        $this->assertNotEmpty($files);
+
+        $contents = (string) file_get_contents($files[0]);
         $this->assertStringContainsString(
             'security.login.failed ip=10.0.0.5 username=' . self::USERNAME,
-            (string) file_get_contents($path)
+            $contents
         );
+        $this->assertStringNotContainsString('wrong-password', $contents);
 
-        @unlink($path);
+        array_map('unlink', $files);
     }
 
     public function test_token_sign_in_is_audited()
@@ -377,18 +382,39 @@ class LoginLockoutTest extends TestCase
         $this->assertSame(1, DB::table('OPTV2LOGS')->where('LOGTYPE', 'logout')->count());
     }
 
+    public function test_the_security_log_timestamp_is_utc()
+    {
+        $dir = storage_path('logs');
+        config(['login_throttle.log_dir' => $dir]);
+        array_map('unlink', glob($dir . '/auth-*.log') ?: []);
+
+        \Carbon\Carbon::setTestNow(\Carbon\Carbon::create(2026, 11, 27, 8, 46, 18, 'UTC'));
+
+        $this->signIn('10.0.0.5', 'wrong-password');
+
+        $files = glob($dir . '/auth-*.log') ?: [];
+        $this->assertNotEmpty($files);
+        $this->assertStringStartsWith(
+            '[2026-11-27 08:46:18] security.login.failed',
+            (string) file_get_contents($files[0])
+        );
+
+        array_map('unlink', $files);
+    }
+
     public function test_the_file_line_is_written_once_per_address_per_minute()
     {
-        $path = storage_path('logs/auth-test-cap.log');
-        @unlink($path);
-        config(['logging.channels.auth' => ['driver' => 'single', 'path' => $path, 'level' => 'debug']]);
+        $dir = storage_path('logs');
+        config(['login_throttle.log_dir' => $dir]);
+        array_map('unlink', glob($dir . '/auth-*.log') ?: []);
 
         $this->signIn('10.0.0.5', 'wrong-password');
         $this->signIn('10.0.0.5', 'wrong-password');
 
-        $lines = substr_count((string) file_get_contents($path), 'security.login.failed ip=10.0.0.5');
+        $files = glob($dir . '/auth-*.log') ?: [];
+        $lines = substr_count((string) file_get_contents($files[0]), 'security.login.failed ip=10.0.0.5');
         $this->assertSame(1, $lines);
 
-        @unlink($path);
+        array_map('unlink', $files);
     }
 }

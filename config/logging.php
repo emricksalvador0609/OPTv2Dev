@@ -54,13 +54,9 @@ return [
             'days' => 14,
         ],
 
-        // Sign-in failures and lockouts. Read by fail2ban; do not rename the path or lines.
-        'auth' => [
-            'driver' => 'daily',
-            'path' => storage_path('logs/auth.log'),
-            'level' => 'info',
-            'days' => 30,
-        ],
+        // Sign-in failures are written by App\Services\SignInAudit to
+        // storage/logs/auth-YYYY-MM-DD.log (UTC), not through Monolog, so
+        // fail2ban can read timestamps that match the host clock.
 
         'slack' => [
             'driver' => 'slack',

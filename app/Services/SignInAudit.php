@@ -71,9 +71,17 @@ class SignInAudit
                 return;
             }
 
-            Log::channel('auth')->info($event . ' ip=' . $ip . ' username=' . trim($username));
+            // UTC on purpose: the host and fail2ban run on UTC, the app on Manila.
+            // A mismatched timestamp makes fail2ban treat every line as old.
+            $now = now()->utc();
+            $dir = rtrim((string) config('login_throttle.log_dir', storage_path('logs')), '/');
+            $path = $dir . '/auth-' . $now->format('Y-m-d') . '.log';
+            $line = '[' . $now->format('Y-m-d H:i:s') . '] '
+                . $event . ' ip=' . $ip . ' username=' . trim($username) . PHP_EOL;
+
+            @file_put_contents($path, $line, FILE_APPEND | LOCK_EX);
         } catch (\Throwable $e) {
-            // A missing channel must never block sign-in.
+            // A missing directory must never block sign-in.
         }
     }
 
