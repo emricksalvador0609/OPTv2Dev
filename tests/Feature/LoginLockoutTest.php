@@ -330,6 +330,28 @@ class LoginLockoutTest extends TestCase
         $this->assertFalse($after['unlock']);
     }
 
+    public function test_unlock_endpoint_clears_one_address_and_leaves_the_other_rows_actionable()
+    {
+        for ($attempt = 0; $attempt < 3; $attempt++) {
+            $this->signIn('10.0.0.5', 'wrong-password');
+            $this->signIn('10.0.0.6', 'wrong-password');
+        }
+
+        $this->admin()->post('/audit-log/unlock', [
+            'username' => self::USERNAME, 'ip' => '10.0.0.5',
+        ])->assertRedirect();
+
+        // The cleared pair works; the other address is still locked.
+        $this->signIn('10.0.0.5', self::PASSWORD)->assertSessionHas('staff', 2);
+        $this->flushSession();
+        $this->signIn('10.0.0.6', self::PASSWORD)->assertSessionMissing('staff');
+
+        $rows = $this->admin()->getJson('/datatable_audit_log')->json();
+        $stillLocked = collect($rows)->first(fn ($row) => $row['event'] === 'Sign-in Locked' && $row['ip'] === '10.0.0.6');
+        $this->assertNotNull($stillLocked);
+        $this->assertTrue($stillLocked['unlock']);
+    }
+
     public function test_the_file_line_is_written_once_per_address_per_minute()
     {
         $path = storage_path('logs/auth-test-cap.log');
