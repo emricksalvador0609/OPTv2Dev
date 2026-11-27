@@ -28,4 +28,11 @@ return [
     */
     'log_seconds' => (int) env('LOGIN_LOG_INTERVAL', 60),
 
+    /*
+    | Where the security lines are written: storage/logs/auth-YYYY-MM-DD.log,
+    | UTC timestamp. fail2ban reads these. Directory must exist and be
+    | writable by the web user.
+    */
+    'log_dir' => env('LOGIN_LOG_DIR', storage_path('logs')),
+
 ];
