@@ -287,4 +287,42 @@ class LoginLockoutTest extends TestCase
 
         $this->signIn('10.0.0.6', self::PASSWORD)->assertSessionMissing('staff');
     }
+
+    public function test_an_address_is_cut_off_above_the_request_ceiling()
+    {
+        config(['login_throttle.max_requests' => 2, 'login_throttle.decay_seconds' => 60]);
+
+        $this->signIn('10.0.0.5', 'wrong-password');
+        $this->signIn('10.0.0.5', 'wrong-password');
+
+        $this->signIn('10.0.0.5', 'wrong-password')->assertSessionHas('errormessage');
+        $this->signIn('10.0.0.5', self::PASSWORD)->assertSessionMissing('staff');
+
+        $this->assertSame(2, DB::table('OPTV2LOGS')->where('LOGTYPE', 'loginfailed')->count());
+    }
+
+    public function test_another_address_is_not_affected_by_the_ceiling()
+    {
+        config(['login_throttle.max_requests' => 1, 'login_throttle.decay_seconds' => 60]);
+
+        $this->signIn('10.0.0.5', 'wrong-password');
+        $this->signIn('10.0.0.5', 'wrong-password')->assertSessionHas('errormessage');
+
+        $this->signIn('10.0.0.7', self::PASSWORD)->assertSessionHas('staff', 2);
+    }
+
+    public function test_the_file_line_is_written_once_per_address_per_minute()
+    {
+        $path = storage_path('logs/auth-test-cap.log');
+        @unlink($path);
+        config(['logging.channels.auth' => ['driver' => 'single', 'path' => $path, 'level' => 'debug']]);
+
+        $this->signIn('10.0.0.5', 'wrong-password');
+        $this->signIn('10.0.0.5', 'wrong-password');
+
+        $lines = substr_count((string) file_get_contents($path), 'security.login.failed ip=10.0.0.5');
+        $this->assertSame(1, $lines);
+
+        @unlink($path);
+    }
 }

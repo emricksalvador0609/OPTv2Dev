@@ -1398,6 +1398,12 @@ return $s->isbn;
         $loginGuard = app(\App\Services\LoginGuard::class);
         $clientIp = (string) $request->ip();
 
+        if (!$loginGuard->allowAttempt($clientIp)) {
+            $request->session()->flash('errormessage', "Too many sign-in attempts from this device. Please wait a minute and try again.");
+            $request->session()->flash('classDiv', "is-invalid");
+            return back();
+        }
+
         if ($loginGuard->isLocked($username, $clientIp)) {
             app(\App\Services\SignInAudit::class)->refusedWhileLocked($username, $clientIp);
             $request->session()->flash('errormessage', "Too many failed sign-in attempts. Please try again in " . \App\Services\LoginGuard::LOCK_MINUTES . " minutes.");

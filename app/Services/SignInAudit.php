@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\OPTv2Logs;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -62,6 +63,12 @@ class SignInAudit
     private function file(string $event, string $username, string $ip): void
     {
         try {
+            // One line per address per window: a flood must not size the log.
+            $interval = max(1, (int) config('login_throttle.log_seconds', 60));
+            if (!Cache::add('auth_log:' . $ip, 1, $interval)) {
+                return;
+            }
+
             Log::channel('auth')->info($event . ' ip=' . $ip . ' username=' . trim($username));
         } catch (\Throwable $e) {
             // A missing channel must never block sign-in.

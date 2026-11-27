@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\OPTv2Logs;
+use Illuminate\Support\Facades\Cache;
 
 /**
  * Per-address, per-username sign-in lockout.
@@ -27,6 +28,28 @@ class LoginGuard
     public function isLocked(string $username, string $ip): bool
     {
         return $this->failureCount($username, $ip) >= self::MAX_FAILURES;
+    }
+
+    /**
+     * Cheap per-address ceiling checked before any query. Protects the
+     * database and the log from a flood; never blocks normal use.
+     * Fails open: a cache outage must not stop people signing in.
+     */
+    public function allowAttempt(string $ip): bool
+    {
+        try {
+            $key = 'login_requests:' . $ip;
+            $max = max(1, (int) config('login_throttle.max_requests', 600));
+            $decay = max(1, (int) config('login_throttle.decay_seconds', 60));
+
+            if (Cache::add($key, 1, $decay)) {
+                return true;
+            }
+
+            return (int) Cache::increment($key) <= $max;
+        } catch (\Throwable $e) {
+            return true;
+        }
     }
 
     /**
