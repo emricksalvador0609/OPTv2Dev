@@ -168,7 +168,7 @@ class LoginLockoutTest extends TestCase
         }
         $this->signIn('10.0.0.6', self::PASSWORD);
 
-        $rows = $this->admin()->getJson('/datatable_audit_log')->assertOk()->json();
+        $rows = $this->admin()->getJson('/datatable_audit_log')->assertOk()->json()['data'];
 
         $events = array_column($rows, 'event');
         $this->assertContains('Sign-in Failed', $events);
@@ -183,7 +183,7 @@ class LoginLockoutTest extends TestCase
             $this->signIn('10.0.0.5', 'wrong-password');
         }
 
-        $rows = $this->admin()->getJson('/datatable_audit_log')->assertOk()->json();
+        $rows = $this->admin()->getJson('/datatable_audit_log')->assertOk()->json()['data'];
         $locked = collect($rows)->firstWhere('event', 'Sign-in Locked');
 
         $this->assertSame('10.0.0.5', $locked['ip']);
@@ -317,7 +317,7 @@ class LoginLockoutTest extends TestCase
             $this->signIn('10.0.0.5', 'wrong-password');
         }
 
-        $before = collect($this->admin()->getJson('/datatable_audit_log')->json())
+        $before = collect($this->admin()->getJson('/datatable_audit_log')->json()['data'])
             ->firstWhere('event', 'Sign-in Locked');
         $this->assertTrue($before['unlock']);
 
@@ -325,7 +325,7 @@ class LoginLockoutTest extends TestCase
             'username' => self::USERNAME, 'ip' => '10.0.0.5',
         ])->assertRedirect();
 
-        $after = collect($this->admin()->getJson('/datatable_audit_log')->json())
+        $after = collect($this->admin()->getJson('/datatable_audit_log')->json()['data'])
             ->firstWhere('event', 'Sign-in Locked');
         $this->assertFalse($after['unlock']);
     }
@@ -346,10 +346,35 @@ class LoginLockoutTest extends TestCase
         $this->flushSession();
         $this->signIn('10.0.0.6', self::PASSWORD)->assertSessionMissing('staff');
 
-        $rows = $this->admin()->getJson('/datatable_audit_log')->json();
+        $rows = $this->admin()->getJson('/datatable_audit_log')->json()['data'];
         $stillLocked = collect($rows)->first(fn ($row) => $row['event'] === 'Sign-in Locked' && $row['ip'] === '10.0.0.6');
         $this->assertNotNull($stillLocked);
         $this->assertTrue($stillLocked['unlock']);
+    }
+
+    public function test_a_repeated_sign_in_within_five_minutes_is_not_logged_twice()
+    {
+        $this->signIn('10.0.0.5', self::PASSWORD)->assertSessionHas('staff', 2);
+        $this->flushSession();
+        $this->signIn('10.0.0.5', self::PASSWORD)->assertSessionHas('staff', 2);
+
+        $this->assertSame(1, DB::table('OPTV2LOGS')->where('LOGTYPE', 'login')->count());
+
+        \Carbon\Carbon::setTestNow(now()->addMinutes(6));
+        $this->flushSession();
+        $this->signIn('10.0.0.5', self::PASSWORD)->assertSessionHas('staff', 2);
+
+        $this->assertSame(2, DB::table('OPTV2LOGS')->where('LOGTYPE', 'login')->count());
+    }
+
+    public function test_a_repeated_sign_out_within_five_minutes_is_not_logged_twice()
+    {
+        $session = ['staff' => 2, 'pernr' => '2000002', 'rank' => 'AE', 'user_staff' => self::USERNAME];
+
+        $this->withSession($session)->get('/logout');
+        $this->withSession($session)->get('/logout');
+
+        $this->assertSame(1, DB::table('OPTV2LOGS')->where('LOGTYPE', 'logout')->count());
     }
 
     public function test_the_file_line_is_written_once_per_address_per_minute()

@@ -25,6 +25,8 @@ class SignInAudit
 
     public const UNLOCKED = 'loginunlock';
 
+    public const REPEAT_WINDOW_MINUTES = 5;
+
     /**
      * One row per failed attempt inside an unlocked window. Returns the row id.
      */
@@ -77,22 +79,42 @@ class SignInAudit
 
     public function succeeded(\App\Models\OPTv2User $user, string $ip): void
     {
-        $this->write(
-            trim((string) $user->USERNAME),
-            'signed in; ip=' . $ip . ';',
-            (string) $user->PERNR,
-            self::SUCCESS
-        );
+        $username = trim((string) $user->USERNAME);
+        if ($this->isRepeat($username, self::SUCCESS)) {
+            return;
+        }
+
+        $this->write($username, 'signed in; ip=' . $ip . ';', (string) $user->PERNR, self::SUCCESS);
     }
 
     public function loggedOut(?string $username, ?string $pernr): void
     {
         $username = trim((string) $username);
-        if ($username === '') {
+        if ($username === '' || $this->isRepeat($username, self::LOGOUT)) {
             return;
         }
 
         $this->write($username, 'signed out;', $pernr, self::LOGOUT);
+    }
+
+    /**
+     * True when this account's newest entry is the same event inside the
+     * repeat window: a browser retry or back-button resubmit, not a new
+     * session. Failures are never collapsed.
+     */
+    private function isRepeat(string $username, string $type): bool
+    {
+        $last = OPTv2Logs::query()
+            ->where('REFERENCE', $username)
+            ->orderByDesc('id')
+            ->first();
+
+        if (!$last || (string) $last->LOGTYPE !== $type) {
+            return false;
+        }
+
+        return \Carbon\Carbon::parse($last->DOCDATE)
+            ->greaterThan(now()->subMinutes(self::REPEAT_WINDOW_MINUTES));
     }
 
     /**

@@ -19,6 +19,16 @@
                     <p class="mb-0 text-600 fs--1">Password changes and sign-in activity, newest first.</p>
                 </div>
                 <div class="card-body p-2">
+                    <div class="d-flex flex-wrap gap-2 align-items-end mb-2 px-1">
+                        <label class="mb-0 fs--1 text-600">From
+                            <input type="date" id="audit-from" class="form-control form-control-sm">
+                        </label>
+                        <label class="mb-0 fs--1 text-600">To
+                            <input type="date" id="audit-to" class="form-control form-control-sm">
+                        </label>
+                        <button type="button" id="audit-apply" class="btn btn-sm btn-primary">Apply</button>
+                        <span class="text-600 fs--1 ms-2">Empty dates show the last 90 days.</span>
+                    </div>
                     <div class="table-responsive scrollbar">
                         <table id="audit-log-table" class="table mb-0 audit-log-table">
                             <thead>

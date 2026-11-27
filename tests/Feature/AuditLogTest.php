@@ -85,20 +85,77 @@ class AuditLogTest extends TestCase
         $this->log('JOSE.P', '1500456', '2026-10-28 15:40:00');
         $this->log('MARIA.S', '1500123', '2026-10-28 08:00:00', 'changeisbn', '9781234567890');
 
-        $response = $this->admin()->getJson('/datatable_audit_log')->assertOk();
-        $rows = $response->json();
+        $body = $this->admin()->getJson('/datatable_audit_log')->assertOk()->json();
 
-        $this->assertCount(2, $rows);
-        $this->assertSame(['JOSE.P', 'MARIA.S'], array_column($rows, 'reference'));
-        $this->assertSame([1, 2], array_column($rows, 'num'));
-        $this->assertSame('28 Oct 2026, 3:40:00 PM', $rows[0]['docdate']);
-        $this->assertSame('2026-10-28 15:40:00', $rows[0]['timestamp']);
-        $this->assertSame('Password Changed', $rows[0]['remarks']);
-        $this->assertStringNotContainsString('9781234567890', $response->getContent());
+        $this->assertSame(2, $body['recordsTotal']);
+        $this->assertSame(2, $body['recordsFiltered']);
+        $this->assertCount(2, $body['data']);
+        $this->assertSame(['JOSE.P', 'MARIA.S'], array_column($body['data'], 'reference'));
+        $this->assertSame([1, 2], array_column($body['data'], 'num'));
+        $this->assertSame('28 Oct 2026, 3:40:00 PM', $body['data'][0]['docdate']);
+        $this->assertSame('2026-10-28 15:40:00', $body['data'][0]['timestamp']);
+        $this->assertSame('Password Changed', $body['data'][0]['event']);
+        $this->assertSame('Password Changed', $body['data'][0]['remarks']);
+        $this->assertStringNotContainsString('9781234567890', json_encode($body));
+    }
+
+    public function test_data_endpoint_pages_on_the_server()
+    {
+        foreach (['A.ONE', 'B.TWO', 'C.THREE'] as $index => $name) {
+            $this->log($name, '15000' . $index, '2026-10-2' . ($index + 1) . ' 09:00:00');
+        }
+
+        $body = $this->admin()->getJson('/datatable_audit_log?draw=7&start=1&length=1&order[0][column]=5&order[0][dir]=desc')
+            ->assertOk()->json();
+
+        $this->assertSame(7, $body['draw']);
+        $this->assertSame(3, $body['recordsTotal']);
+        $this->assertSame(3, $body['recordsFiltered']);
+        $this->assertCount(1, $body['data']);
+        $this->assertSame('B.TWO', $body['data'][0]['reference']);
+        $this->assertSame(2, $body['data'][0]['num']);
+    }
+
+    public function test_data_endpoint_searches_across_the_row()
+    {
+        $this->log('MARIA.S', '1500123', '2026-10-28 09:12:00');
+        $this->log('JOSE.P', '1500456', '2026-10-28 15:40:00');
+
+        $body = $this->admin()->getJson('/datatable_audit_log?search[value]=1500456')->assertOk()->json();
+
+        $this->assertSame(2, $body['recordsTotal']);
+        $this->assertSame(1, $body['recordsFiltered']);
+        $this->assertSame('JOSE.P', $body['data'][0]['reference']);
+    }
+
+    public function test_data_endpoint_defaults_to_the_last_ninety_days()
+    {
+        $this->log('OLD.ROW', '1500001', '2026-01-05 09:00:00');
+        $this->log('NEW.ROW', '1500002', '2026-11-20 09:00:00');
+
+        $body = $this->admin()->getJson('/datatable_audit_log')->assertOk()->json();
+        $this->assertSame(1, $body['recordsTotal']);
+        $this->assertSame('NEW.ROW', $body['data'][0]['reference']);
+
+        $wider = $this->admin()->getJson('/datatable_audit_log?from=2026-01-01&to=2026-11-30')->assertOk()->json();
+        $this->assertSame(2, $wider['recordsTotal']);
     }
 
     public function test_data_endpoint_is_empty_when_nothing_is_logged()
     {
-        $this->admin()->getJson('/datatable_audit_log')->assertOk()->assertExactJson([]);
+        $body = $this->admin()->getJson('/datatable_audit_log')->assertOk()->json();
+
+        $this->assertSame(0, $body['recordsTotal']);
+        $this->assertSame([], $body['data']);
+    }
+
+    public function test_an_unreadable_date_falls_back_to_the_default_window()
+    {
+        $this->log('NEW.ROW', '1500002', '2026-11-20 09:00:00');
+
+        $body = $this->admin()->getJson('/datatable_audit_log?from=not-a-date&to=also-not')->assertOk()->json();
+
+        $this->assertSame(1, $body['recordsTotal']);
+        $this->assertSame('NEW.ROW', $body['data'][0]['reference']);
     }
 }
